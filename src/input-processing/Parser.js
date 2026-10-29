@@ -19,16 +19,35 @@ const defaults = {'Vec 1': defaultvec, 'Pt 1': defaultpt, 'Func 1': defaultfunc}
 // const defaults = {'Pt 1': defaultpt, 'Pt 2': {'x': '0', 'y': '0', 'z': '1'}}
 // const defaults = {'SCrv 1': defaultscrv, 'VFld 1': defaultvfld, 'Vec 1': defaultvec}
 
-const BASE_URL = 'https://ndlearning.8thwall.app/realmath/'
+/* old 8th wall hosting appended the encoded json directly after this */
+const LEGACY_BASE_URL = 'https://ndlearning.8thwall.app/realmath/'
+
+/* gets raw json string from ?eqs= param, falling back to legacy url format */
+const GetInput = () => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('eqs')) {
+        return params.get('eqs')  // already decoded
+    }
+    const href = window.location.href
+    if (href.startsWith(LEGACY_BASE_URL)) {
+        return decodeURIComponent(href.slice(LEGACY_BASE_URL.length))
+    }
+    return null
+}
 
 /* **********************
 * The equation JSONs from input page are embedded into the URL
+*   preferred: <app url>?eqs=<encodeURIComponent(json)>
+*   legacy:    https://ndlearning.8thwall.app/realmath/<encodeURIComponent(json)>
 * The equations are then gleaned from the URL
 *********************** */
 export const Parser = () => {
-    const url = decodeURIComponent((window.location.href).slice(BASE_URL.length))  // ignores base url
+    const url = GetInput()
     /* eslint-disable-next-line no-console */
     console.log(`CURRENT URL JSON: ${url}`)
+    if (url === null) {
+        return defaults
+    }
     try {
         return JSON.parse(url)
     } catch (e) {

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-const REPO_NAME = '/threejs-world-effects-example/'
+const REPO_NAME = '/realmathAR/'
 
 export default defineConfig({
   base: `${REPO_NAME}`,
