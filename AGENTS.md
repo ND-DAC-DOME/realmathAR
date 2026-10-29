@@ -79,15 +79,9 @@ Point and Vector are still plain factories that return `{out, type}`.
 
 Decide on one convention before fixing individual cases.
 
-## Dead / legacy code (not imported by the live path)
+## Vendored 8th Wall engine
 
-- `src/new-init.js`: an abandoned standalone init. It references an undefined `scene` and has syntax issues, so don't revive it.
-- `src/geometry-gen/complex-geometry/{Function,SpaceCurve,VectorField}.js`: the old functional versions, replaced by the `*Class.js` files.
-- `src/gui/BaseComponentGui.js` (uses dat.gui), `src/gui/GuiCallbacks.js`, `src/callbacks/VectorFieldCallback.js`: the old GUI wiring.
-- `xr-standalone/` is a byte-identical copy of `public/xr/`. Only `public/xr/` is used.
-- The `dat.gui` dependency is only used by the legacy GUI code. The `@8thwall/engine-binary` npm import in `app.js` is only `console.log`ged; the engine actually loads from `public/xr/xr.js`.
-
-Delete these only with the maintainer's agreement.
+`public/xr/` is the self-hosted 8th Wall engine (the `dist/` of the `@8thwall/engine-binary` npm package). `XR8.Threejs` expects three.js on `window.THREE`, which `app.js` sets. To update the engine, replace `public/xr/` with a newer package's `dist/`.
 
 ## Known issues / gotchas
 
