@@ -1,10 +1,10 @@
 import {edgeTable, triTable} from './MarchingCubesData'
 import { Vector3 } from 'three'
-import { evaluate, N, assign } from "@cortex-js/compute-engine";
+import { assign } from "@cortex-js/compute-engine";
+import { EvaluateNumber } from "../../input-processing/Evaluate";
 
-let size = 30
-let scale = 10
-const isolevel = 0.3
+/* surface is where the equation (left - right) is 0 */
+const isolevel = 0
 
 /// //////////////////////////////////////////////////////////////////////////////////
 /// adapted from tamani-coding's AND stemkoski's marching cubes examples
@@ -32,16 +32,8 @@ const isolevel = 0.3
 ///   SOFTWARE.
 ///   stemkoski license not provided
 /// //////////////////////////////////////////////////////////////////////////////////
-export const MarchingCubes = (equation, scalein = null, sizein = null) => {
-  // updates when scaled
-  if (sizein !== null) {
-    size = sizein
-  }
-  if (scalein !== null) {
-    scale = scalein
-  }
-  /* eslint-disable-next-line no-console */
-  console.log(`MARCHING CUBES SIZE:${size} SCALE:${scale}`)
+/* samples equation on a size^3 grid spanning [-scale/2, scale/2] on each axis */
+export const MarchingCubes = (equation, scale, size) => {
   // containers
   const values = []  // type: Number
   const points = []  // type: THREE.Vector3
@@ -56,15 +48,11 @@ export const MarchingCubes = (equation, scalein = null, sizein = null) => {
         assign('x', x)
         assign('y', y)
         assign('z', z)
-        const value = `${equation.evaluate()}`
-        if (Number.isNaN(value) === false) {
-          values.push(Number(value))
-        }
+        /* always push (even NaN) so values stay index-aligned with points */
+        values.push(EvaluateNumber(equation))
       }
     }
   }
-  /* eslint-disable-next-line no-console */
-  console.log(`WE HAVE ${points.length} POINTS`)
 
   // approximated intersection points
   const vlist = new Array(12)

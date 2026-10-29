@@ -1,101 +1,107 @@
 import { GeometryParent } from '../GeometryParent.js'
-import { Group, Vector3, Color } from "three"
-import { Vector } from "../base-geometry/Vector"
-import { evaluate, N, assign } from "@cortex-js/compute-engine";
+import {
+    Vector3, Quaternion, Matrix4, Color, CylinderGeometry, ConeGeometry,
+    InstancedMesh, InstancedBufferAttribute, MeshToonMaterial,
+} from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { assign } from '@cortex-js/compute-engine'
+import { EvaluateNumber } from '../../input-processing/Evaluate'
+
+const UP = new Vector3(0, 1, 0)
+
+/* unit-length arrow along +y, shared by every instance */
+const ArrowGeometry = () => {
+    const shaft = new CylinderGeometry(0.03, 0.03, 0.75, 6)
+    shaft.translate(0, 0.375, 0)
+    const head = new ConeGeometry(0.1, 0.25, 6)
+    head.translate(0, 0.875, 0)
+    return mergeGeometries([shaft, head])
+}
 
 export class VectorField extends GeometryParent {
-    static STEP = 0.2
+    static STEP = 1         // spacing between arrows
+    static MAXSLICES = 10   // max arrows on each side of the origin, per axis
     constructor (props) {
         /* initialize super and vars */
         super(3, props.eqs)
-        this.slices = {x: 5, y:5, z:1}
+        /* # of arrows on each side of the origin, per axis */
+        this.slices = {x: 5, y: 5, z: 0}
         this.prevSlices = {...this.slices}
-        this.vecSize = (this.constructor.MAXSIZE * 2) / this.constructor.STEP
-        console.log(this.vecSize)
-        /* generate all vectors, caching to avoid reeval */
-        this.vecs = Array(this.vecSize).fill().map(()=>{return Array(this.vecSize).fill().map(()=>Array(this.vecsize).fill())})
-        const xyz = {x: -this.constructor.MAXSIZE, y: -this.constructor.MAXSIZE, z: -this.constructor.MAXSIZE}
-        for (let i = 0; i < this.vecSize; i += 1) {
-            xyz.y = -this.constructor.MAXSIZE
-            for (let j = 0; j < this.vecSize; j += 1) {
-                xyz.z = -this.constructor.MAXSIZE
-                for (let k = 0; k < this.vecSize; k += 1) {
-                    assign('x', xyz.x)
-                    assign('y', xyz.y)
-                    assign('z', xyz.z)
-
-                    let add = true  // prevents nan values from being included in vecs
-                    const values = {'x': null, 'y': null, 'z': null}
-
-                    for (const element of ['x', 'y', 'z']) {
-                        const result = `${this.eqs[element].evaluate()}`
-                        if (isNaN(result) === false) {
-                            values[element] = Number(result)
-                        } else {
-                            add = false
-                            break
-                        }
-                    }
-
-                    const dir = new Vector3(values.x, values.y, values.z)
-                    const colorvec = new Vector3().copy(dir).normalize()
-
-                    if (add) {
-                        const mesh = Vector({
-                            init: dir,
-                            vec: colorvec, 
-                            color: new Color().setRGB(colorvec.x, colorvec.z, colorvec.y),
-                            vfld: true,
-                        }).out
-                        try {
-                            this.vecs[i][j][k] = mesh
-                        } catch (e) {
-                            throw new Error(`error @ VectorFieldClass l:51 ${e}`)
-                        }
-                    }
-                    xyz.z += this.constructor.STEP
-                }
-                xyz.y += this.constructor.STEP           
-            }
-            xyz.x += this.constructor.STEP
-        }
+        /* evaluated vectors keyed by grid point, so slider changes don't reeval */
+        this.cache = new Map()
+        /* one instanced mesh draws every arrow in a single draw call */
+        const maxCount = (2 * this.constructor.MAXSLICES + 1) ** 3
+        this.mesh = new InstancedMesh(ArrowGeometry(), new MeshToonMaterial(), maxCount)
+        this.mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(maxCount * 3), 3)
+        this.mesh.frustumCulled = false  // instance count changes, so bounds go stale
+        this.out.add(this.mesh)
+        this.getVecs()
     }
 
-    getVecs () {
-        /* clear old slices from display */
-        /* no garbage collection, since we want them cached */
-        this.out.children = []
-        let i = 0
-        let j = 0
-        let k = 0
-        /* get desired # of vecs in each direction */
-        for (let x = -this.slices.x; x < this.slices.x; x++) {
-            for (let y = -this.slices.y; y < this.slices.y; y++) {
-                for (let z = -this.slices.z; z < this.slices.z; z++) {
-                    try {
-                        this.out.add(this.vecs[i][j][k])
-                    } catch (e) {
-                        console.error(`${e}`)
-                    }
-                    k+=1
+    /* field value at grid point (i, j, k), or null where undefined */
+    evalAt (i, j, k) {
+        const key = `${i},${j},${k}`
+        if (!this.cache.has(key)) {
+            const step = this.constructor.STEP
+            assign('x', i * step)
+            assign('y', j * step)
+            assign('z', k * step)
+            let vec = new Vector3()
+            for (const element of ['x', 'y', 'z']) {
+                const result = EvaluateNumber(this.eqs[element])
+                if (!Number.isFinite(result)) {
+                    vec = null
+                    break
                 }
-                k = 0
-                j+=1
+                vec[element] = result
             }
-            j = 0
-            i+=1
+            this.cache.set(key, vec)
         }
+        return this.cache.get(key)
+    }
+
+    /* lay out arrows for the current slices: unit length, pointing along the field */
+    getVecs () {
+        const step = this.constructor.STEP
+        const {x: nx, y: ny, z: nz} = this.slices
+        const matrix = new Matrix4()
+        const quat = new Quaternion()
+        const pos = new Vector3()
+        const scale = new Vector3().setScalar(step * 0.8)
+        const dir = new Vector3()
+        const color = new Color()
+        let count = 0
+        for (let i = -nx; i <= nx; i++) {
+            for (let j = -ny; j <= ny; j++) {
+                for (let k = -nz; k <= nz; k++) {
+                    const vec = this.evalAt(i, j, k)
+                    /* skip undefined and zero vectors, which have no direction */
+                    if (vec === null || vec.lengthSq() === 0) {
+                        continue
+                    }
+                    dir.copy(vec).normalize()
+                    quat.setFromUnitVectors(UP, dir)
+                    pos.set(i * step, j * step, k * step)
+                    matrix.compose(pos, quat, scale)
+                    this.mesh.setMatrixAt(count, matrix)
+                    /* color by direction */
+                    this.mesh.setColorAt(count, color.setRGB(Math.abs(dir.x), Math.abs(dir.y), Math.abs(dir.z)))
+                    count += 1
+                }
+            }
+        }
+        this.mesh.count = count
+        this.mesh.instanceMatrix.needsUpdate = true
+        this.mesh.instanceColor.needsUpdate = true
     }
 
     vecsCallback = (coord) => {
         /* prevent redundant changes */
-        if (this.prevSlices[coord] == this.slices[coord]) {
+        if (this.prevSlices[coord] === this.slices[coord]) {
             return
         } else {
             this.prevSlices[coord] = this.slices[coord]
             this.getVecs()
         }
     }
-
-
 }

@@ -1,84 +1,46 @@
-import { Vector3, Group, ConeGeometry, Mesh,  DoubleSide, MeshToonMaterial } from "three"
-import { Line2 } from "three/examples/jsm/Addons.js"
-import { LineGeometry } from "three/examples/jsm/Addons.js"
-import { LineMaterial } from "three/examples/jsm/Addons.js"
+import { Vector3, Group, ConeGeometry, Mesh, DoubleSide, MeshToonMaterial } from "three"
+import { Line2 } from "three/examples/jsm/lines/Line2.js"
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js"
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js"
 
 const WIDTH = 0.05
+const UP = new Vector3(0, 1, 0)
 
-/** 
- * adaptation from js ArrowHelper native 
+/**
+ * adaptation from js ArrowHelper native
  * allows custom line width utilizing Line2 addon
- */
-
-/**
- * gathers and sets direction from vec input
- * outputs final oriented vector
- */
-const set_dir = (group, vec) => {
-    /* normalize input vec */
-    const dir = new Vector3(vec.x, vec.y, vec.z)
-    dir.normalize()
-    /* logic taken directly from ArrowHelper native */
-    if ( dir.y > 0.99999 ) {
-        group.quaternion.set( 0, 0, 0, 1 )
-    } else if ( dir.y < - 0.99999 ) {
-        group.quaternion.set( 1, 0, 0, 0 )
-    } else {
-        const axis = new Vector3()
-        axis.set( dir.z, 0, - dir.x ).normalize()
-        const radians = Math.acos(dir.y )
-        group.quaternion.setFromAxisAngle( axis, radians )
-    }
-    return  {
-                out: group,
-                type: 2
-            }
-}
-
-/**
- * main object export 
- * takes in initial points and color
+ * draws vec as an arrow whose tail is at init and tip is at init + vec
  */
 export const Vector = (props) => {
     /* initializing vars / kwargs */
     const group = new Group()
     const {init, vec, color} = props
-    const length =  init.distanceTo(vec)
-    const rad = length / 8
-    const head = rad / 4
-    /* creating the line (arrow shaft) */
-    const points = props.vfld === true  ?   [
-                                            new Vector3(0,0,0),
-                                            new Vector3(0, 1, 0)
-                                        ]
-                                    :   [
-                                            new Vector3(0,0,0),
-                                            new Vector3(0, length, 0)
-                                        ]
+    const length = vec.length()
+    const head = length / 8
+    /* creating the line (arrow shaft), built along +y then rotated into place */
     const line = new Line2(
-    (new LineGeometry()).setFromPoints(points),
-    new LineMaterial({
-        color: color,
-        linewidth: WIDTH,
-        worldUnits: true,
-    })
+        (new LineGeometry()).setPositions([0, 0, 0, 0, length - head, 0]),
+        new LineMaterial({
+            color: color,
+            linewidth: WIDTH,
+            worldUnits: true,
+        })
     )
-    line.matrixAutoUpdate = false
     /* creating the cone (arrow point) */
-    const cone = new Mesh(new ConeGeometry(head, rad, 6, 1), new MeshToonMaterial({
+    const cone = new Mesh(new ConeGeometry(head / 4, head, 6, 1), new MeshToonMaterial({
         color: color,
         side: DoubleSide,
     }))
-    cone.matrixAutoUpdate = false
+    cone.position.set(0, length - head / 2, 0)
     group.add(line)
     group.add(cone)
     group.position.copy(init)
-    const coneY = props.vfld === true ? cone.position.y + 1 : cone.position.y + (length*0.9)
-    cone.position.set(cone.position.x, coneY, cone.position.z)
-    cone.updateMatrix();
-    line.scale.set(1, 0.9, 1)
-    line.updateMatrix()
-    cone.matrixAutoUpdate = true
-    line.matrixAutoUpdate = true
-    return set_dir(group, vec)
+    /* orient +y along vec */
+    if (length > 0) {
+        group.quaternion.setFromUnitVectors(UP, vec.clone().normalize())
+    }
+    return {
+        out: group,
+        type: 2
+    }
 }

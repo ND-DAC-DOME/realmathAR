@@ -1,5 +1,5 @@
 import { MarchingCubes } from "../mcubes/MarchingCubes"
-import { Float32BufferAttribute, ShaderMaterial, Color, DoubleSide, BufferGeometry, Mesh, Group } from "three"
+import { Float32BufferAttribute, ShaderMaterial, Color, DoubleSide, BufferGeometry, Mesh } from "three"
 import { GeometryParent } from "../GeometryParent"
 
 export class Function extends GeometryParent {
@@ -7,20 +7,18 @@ export class Function extends GeometryParent {
         super(0, props.eqs)
         this.colors = [new Color(0X2D0075), new Color(0x60EFFF)]
         this.MeshGetter()
-        this.prevMaxes = {x: this.xMax, y: this.yMax, z: this.zMax}
     }
 
     PointGetter () {
         /* generates points using marching cubes alg */
         const trianglePoints = MarchingCubes(this.eqs, this.scale, this.size)
-        const maxPolygons = 30000
-        const vertices = Array(3 * maxPolygons).fill(0)
+        const vertices = new Float32Array(3 * trianglePoints.length)
         /* faces */
         for (let i = 0; i < trianglePoints.length; i++) {
             const [x, y, z]     = trianglePoints[i]
             vertices[i * 3]     = x
-            vertices[i * 3 + 1] = z
-            vertices[i * 3 + 2] = y
+            vertices[i * 3 + 1] = y
+            vertices[i * 3 + 2] = z
         }
         const positionAttribute = new Float32BufferAttribute(vertices, 3)
         return [positionAttribute, trianglePoints]
@@ -50,7 +48,8 @@ export class Function extends GeometryParent {
                 varying vec2 vUv;
 
                 void main() {
-                    vUv.y = (position.y - bboxMin.y) / (bboxMax.y - bboxMin.y);
+                    /* gradient by height (math z) */
+                    vUv.y = (position.z - bboxMin.z) / (bboxMax.z - bboxMin.z);
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
                 }
             `,
@@ -93,7 +92,7 @@ export class Function extends GeometryParent {
             return 
         } else {
             this.setSize()
-            this.MeshGetter()
+            this.MeshGetter(true)
         }
     }
 }
