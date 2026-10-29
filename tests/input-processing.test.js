@@ -3,7 +3,7 @@ import { parse, assign } from '@cortex-js/compute-engine'
 import { EvaluateNumber } from '../src/input-processing/Evaluate'
 import { Parser } from '../src/input-processing/Parser'
 import { Processor } from '../src/input-processing/Processor'
-import { compressToEncodedURIComponent } from 'lz-string'
+import LZString from 'lz-string'
 
 const at = (href) => vi.stubGlobal('window', { location: { href, search: new URL(href).search } })
 
@@ -49,7 +49,7 @@ describe('Parser', () => {
             Func: { 'Func 1': { left: 'x^2+y^2', right: 'z' } },
             Pt: { 'Pt 1': { x: '1', y: '\\frac{1}{2}', z: '0' }, 'Pt 2': { x: '0', y: '0', z: '1' } },
         }
-        const z = compressToEncodedURIComponent(JSON.stringify(grouped))
+        const z = LZString.compressToEncodedURIComponent(JSON.stringify(grouped))
         at(`https://nd-dac-dome.github.io/realmathAR/?z=${z}`)
         const { inputs, error } = Parser()
         expect(error).toBeNull()

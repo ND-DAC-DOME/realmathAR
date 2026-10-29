@@ -1,4 +1,4 @@
-import { decompressFromEncodedURIComponent } from 'lz-string'
+import LZString from 'lz-string'  // CommonJS module: use the default export
 
 /* default equation set, shown when no input is given */
 const defaults = {
@@ -14,7 +14,7 @@ const LEGACY_BASE_URL = 'https://ndlearning.8thwall.app/realmath/'
 const GetInput = () => {
     const params = new URLSearchParams(window.location.search)
     if (params.has('z')) {
-        return decompressFromEncodedURIComponent(params.get('z')) ?? ''  // handles '+' decoded as ' '
+        return LZString.decompressFromEncodedURIComponent(params.get('z')) ?? ''  // handles '+' decoded as ' '
     }
     if (params.has('eqs')) {
         return params.get('eqs')  // already decoded
