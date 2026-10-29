@@ -4,7 +4,9 @@ Web AR graphing for multivariable calculus. Pass in surfaces, points, vectors, v
 
 ## Usage
 
-Open the app with an `eqs` query parameter containing URL-encoded JSON:
+The easiest way in is the input site, https://nd-dac-dome.github.io/realmath/. Build your graph there and press **Visualize it** to get a QR code and link to this viewer. Those links carry the graph as `?z=<lz-string compressed JSON>`.
+
+You can also open the viewer with an `eqs` query parameter containing URL-encoded JSON:
 
 ```
 https://nd-dac-dome.github.io/realmathAR/?eqs=<encodeURIComponent(JSON)>
