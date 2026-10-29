@@ -105,8 +105,8 @@ All geometry is built in **math coordinates (z up)**. Don't swap axes inside com
 - Vite `base` is `/realmathAR/` to match the GitHub Pages path. Change it if you host somewhere else.
 - XR8's three.js pipeline module renders every frame, so components never need to call `renderer.render()` after changing.
 - `Vec` means displacement: the arrow's tail is at `init` and its tip at `init + vec`.
-- Ranges are inconsistent. A surface's `scale` covers [−scale/2, scale/2], while a space curve's covers t ∈ [−scale, scale]. The GUI labels both "axis +-range".
-- Marching cubes cost grows with `size³` (`size = scale + 20`): about 27k evaluations at the default and about 860k at the max scale of 75.
+- A surface's window is its `scale` width (the GUI's "window width") centered on the focal point. A space curve's extent is set separately by `tRange`.
+- Marching cubes cost grows with `size³` (`size = scale + 20`), but with compiled evaluation even the max window of 75 (about 860k samples) takes tens of milliseconds.
 - Import three.js add-ons by their specific path (for example `three/examples/jsm/lines/Line2.js`), not from `Addons.js`, which pulls in every add-on. Use the WebGL versions of add-ons, not the `webgpu/` ones.
 - The marching-cubes and lookup-table code is adapted from MIT-licensed tamani-coding and from stemkoski/Paul Bourke. Keep those attribution headers.
 - `public/xr/` is the 8th Wall / Niantic XR Engine under its own license (`public/xr/LICENSE`). Don't edit it.
