@@ -39,7 +39,7 @@ index.html
 
 ### Input format (Parser.js)
 
-The input JSON is URL-encoded in the `eqs` query parameter (`<app url>?eqs=<encodeURIComponent(json)>`). The legacy format, with the encoded JSON appended right after `https://ndlearning.8thwall.app/realmath/`, is still accepted. The page that generates these URLs lives elsewhere, not in this repo. If there is no input or it fails to parse, Parser falls back to the hard-coded `defaults` (and returns an `error` for bad JSON).
+The input page is the separate `ND-DAC-DOME/realmath` site (https://nd-dac-dome.github.io/realmath/). It sends `?z=<lz-string compressToEncodedURIComponent(json)>`, with components grouped by type (`{"Func": {"Func 1": {...}}}`). `Parser` decompresses that payload and flattens it. A hand-written `?eqs=<encodeURIComponent(json)>` with flat keys also works, as does the legacy format (encoded JSON appended right after `https://ndlearning.8thwall.app/realmath/`). If you change the payload shape, change both repos. If there is no input or it fails to parse, Parser falls back to the hard-coded `defaults` (and returns an `error` for bad JSON).
 
 The first word of each key sets the component type (`"Func 1"`, `"Vec 2"`, etc.):
 

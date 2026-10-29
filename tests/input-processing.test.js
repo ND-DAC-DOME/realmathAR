@@ -3,6 +3,7 @@ import { parse, assign } from '@cortex-js/compute-engine'
 import { EvaluateNumber } from '../src/input-processing/Evaluate'
 import { Parser } from '../src/input-processing/Parser'
 import { Processor } from '../src/input-processing/Processor'
+import LZString from 'lz-string'
 
 const at = (href) => vi.stubGlobal('window', { location: { href, search: new URL(href).search } })
 
@@ -41,6 +42,26 @@ describe('Parser', () => {
         const { inputs, error } = Parser()
         expect(Object.keys(inputs)).toContain('Func 1')
         expect(error).toBeNull()
+    })
+
+    it('reads the realmath site format: lz-string compressed and grouped by type', () => {
+        const grouped = {
+            Func: { 'Func 1': { left: 'x^2+y^2', right: 'z' } },
+            Pt: { 'Pt 1': { x: '1', y: '\\frac{1}{2}', z: '0' }, 'Pt 2': { x: '0', y: '0', z: '1' } },
+        }
+        const z = LZString.compressToEncodedURIComponent(JSON.stringify(grouped))
+        at(`https://nd-dac-dome.github.io/realmathAR/?z=${z}`)
+        const { inputs, error } = Parser()
+        expect(error).toBeNull()
+        expect(inputs).toEqual({ 'Func 1': grouped.Func['Func 1'], 'Pt 1': grouped.Pt['Pt 1'], 'Pt 2': grouped.Pt['Pt 2'] })
+        expect(Processor(inputs).errors).toEqual([])
+    })
+
+    it('reports an error for a corrupt z param', () => {
+        at('https://nd-dac-dome.github.io/realmathAR/?z=not-really-compressed')
+        const { inputs, error } = Parser()
+        expect(Object.keys(inputs)).toContain('Func 1')
+        expect(error).toMatch(/could not read input/)
     })
 
     it('falls back to defaults with an error for bad json', () => {
