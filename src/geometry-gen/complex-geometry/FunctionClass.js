@@ -1,17 +1,21 @@
 import { MarchingCubes } from "../mcubes/MarchingCubes"
-import { Float32BufferAttribute, ShaderMaterial, Color, DoubleSide, BufferGeometry, Mesh } from "three"
+import { Float32BufferAttribute, ShaderMaterial, Color, DoubleSide, BufferGeometry, Mesh, Vector3 } from "three"
 import { GeometryParent } from "../GeometryParent"
 
 export class Function extends GeometryParent {
     constructor (props) {
         super(0, props.eqs)
-        this.colors = [new Color(0X2D0075), new Color(0x60EFFF)]
+        /* gradient from lowColor (bottom) to highColor (top); gui edits these in place */
+        this.lowColor = new Color(0X2D0075)
+        this.highColor = new Color(0x60EFFF)
+        /* center of the sampling window (focal point) */
+        this.center = new Vector3()
         this.MeshGetter()
     }
 
     PointGetter () {
         /* generates points using marching cubes alg */
-        const trianglePoints = MarchingCubes(this.eqs, this.scale, this.size)
+        const trianglePoints = MarchingCubes(this.eqs, this.center, this.scale, this.size)
         const vertices = new Float32Array(3 * trianglePoints.length)
         /* faces */
         for (let i = 0; i < trianglePoints.length; i++) {
@@ -29,10 +33,10 @@ export class Function extends GeometryParent {
         const material = new ShaderMaterial({
             uniforms: {
                 color1: {
-                    value: this.colors[0],
+                    value: this.lowColor,
                 },
                 color2: {
-                    value: this.colors[1],
+                    value: this.highColor,
                 },
                 bboxMin: {
                     value: geometry.boundingBox.min,
@@ -94,5 +98,20 @@ export class Function extends GeometryParent {
             this.setSize()
             this.MeshGetter(true)
         }
+    }
+
+    /* resample the window around a new focal point */
+    setFocus = (focus) => {
+        if (this.center.equals(focus)) {
+            return
+        }
+        this.center.copy(focus)
+        this.MeshGetter(true)
+    }
+
+    /* middle of the drawn surface, for snapping the focal point to it */
+    focusTarget = () => {
+        const box = this.mesh.geometry.boundingBox
+        return box.isEmpty() ? null : box.getCenter(new Vector3())
     }
 }

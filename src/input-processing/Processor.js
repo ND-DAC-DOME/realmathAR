@@ -1,7 +1,7 @@
 import { Vector3 } from "three"
 import { parse } from "@cortex-js/compute-engine";
 import { GeometryContainer } from "../geometry-gen/GeometryContainer"
-import { EvaluateNumber } from "./Evaluate"
+import { EvaluateNumber, CompileFunction } from "./Evaluate"
 
 /* parentheses shorthand */
 const PL = '//left('
@@ -24,13 +24,13 @@ const ParseLatex = (latex) => {
     return expr
 }
 
-/* parses latex w/ added safeguards for potential missing vars */
+/* parses latex w/ added safeguards for potential missing vars, compiled to f({...vars}) */
 const ParseEquation = (latex, vars) => {
     ParseLatex(latex)  // validate user input on its own for a clearer error
-    return ParseLatex(`${PL}${latex}${PR}` + vars.map((v) => `+${PL}0*${v}${PR}`).join(''))
+    return CompileFunction(ParseLatex(`${PL}${latex}${PR}` + vars.map((v) => `+${PL}0*${v}${PR}`).join('')))
 }
 
-/* parses {x, y, z} equations in the given vars */
+/* parses {x, y, z} equations in the given vars, each compiled to f({...vars}) */
 const ParseEquations = (value, vars) => {
     const eqs = {}
     for (const element of ['x', 'y', 'z']) {

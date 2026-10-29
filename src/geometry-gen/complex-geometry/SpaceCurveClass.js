@@ -3,16 +3,18 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import { Line2 } from 'three/examples/jsm/lines/Line2.js'
 import { Point } from '../base-geometry/Point'
-import { assign } from "@cortex-js/compute-engine";
-import { EvaluateNumber } from '../../input-processing/Evaluate'
 import { GeometryParent } from '../GeometryParent.js'
 
 export class SpaceCurve extends GeometryParent {
+    static SEGMENTS = 1000  // samples across the whole t-range
+    static MAXTRANGE = 100
     constructor (props) {
         super(4, props.eqs)
         this.t = 0
+        /* curve is drawn for t in [-tRange, tRange] */
+        this.tRange = 10
+        this.prevTRange = this.tRange
         this.pointColor = props.color2
-        this.zeropoint = {x: 0, y: 0, z: 0}
         /* basic baby mats for babies */
         this.linemat = new LineBasicMaterial({
             color: props.color,
@@ -25,39 +27,28 @@ export class SpaceCurve extends GeometryParent {
         this.getCurve(true)
     }
 
+    /* curve position at t, or null where any component is undefined */
+    curveAt (t) {
+        const point = new Vector3()
+        for (const element of ['x', 'y', 'z']) {
+            const result = this.eqs[element]({t})
+            if (!Number.isFinite(result)) {
+                return null
+            }
+            point[element] = result
+        }
+        return point
+    }
+
     getCurve (init=false) {
         this.out.children = []
+        /* get the points on the line, skipping undefined ones */
         const points = []
-        /* get the points on the line */
-        for (let t = -this.scale; t < this.scale; t += 0.1) {
-            let add = true  // prevents nan values from being pushed to points
-            const values = {'x': null, 'y': null, 'z': null}
-            assign('t', t)
-
-            for (const element of ['x', 'y', 'z']) {
-                const result = EvaluateNumber(this.eqs[element])
-                if (Number.isFinite(result)) {
-                    values[element] = result
-                } else {
-                    add = false
-                    break
-                }
-            }
-            if (add) {
-                points.push(new Vector3(values.x, values.y, values.z))
-            }
-        }
-        /* if initializing, also need to get the zero point */
-        if (init === true) {
-            /* guarantees we get the point at t=0 */
-            assign('t', 0)
-            for (const element of ['x', 'y', 'z']) {
-                const result = EvaluateNumber(this.eqs[element])
-                if (Number.isFinite(result)) {
-                    this.zeropoint[element] = result
-                } else {
-                    this.zeropoint[element] = 0
-                }
+        const step = (2 * this.tRange) / this.constructor.SEGMENTS
+        for (let i = 0; i <= this.constructor.SEGMENTS; i++) {
+            const point = this.curveAt(-this.tRange + i * step)
+            if (point !== null) {
+                points.push(point)
             }
         }
         const geometry = new BufferGeometry().setFromPoints(points)
@@ -65,8 +56,9 @@ export class SpaceCurve extends GeometryParent {
 
         /* only need new point/no disposal if initializing */
         if (init === true) {
-            this.point = Point({pos: new Vector3(this.zeropoint.x, this.zeropoint.y, this.zeropoint.z), color: this.pointColor})
+            this.point = Point({pos: new Vector3(), color: this.pointColor})
             this.line = new Line2(linegeo, this.material)
+            this.tCallback()
         } else {
             this.line.geometry.dispose()
             this.line.material.dispose()
@@ -76,25 +68,19 @@ export class SpaceCurve extends GeometryParent {
         this.out.add(this.line)
     }
 
+    /* moves the point to the curve at the current t (origin where undefined) */
     tCallback = () => {
-        let newPoint = {...this.zeropoint}
-        assign('t', Number(this.t))
-        for (const element of ['x', 'y', 'z']) {
-            const result = EvaluateNumber(this.eqs[element])
-            if (Number.isFinite(result)) {
-                newPoint[element] = result
-            } else {
-                newPoint[element] = 0
-            }
-        }
-        this.point.position.set(newPoint.x, newPoint.y, newPoint.z)
+        this.point.position.copy(this.curveAt(Number(this.t)) ?? new Vector3())
     }
 
-    curveCallback = () => {
-        if (this.checkRedundant()) {
-            return 
-        } else {
-            this.getCurve()
+    tRangeCallback = () => {
+        if (this.tRange === this.prevTRange) {
+            return
         }
+        this.prevTRange = this.tRange
+        this.getCurve()
     }
+
+    /* the point's current position, for snapping the focal point to it */
+    focusTarget = () => this.point.position.clone()
 }

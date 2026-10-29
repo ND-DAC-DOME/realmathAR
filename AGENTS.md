@@ -55,7 +55,9 @@ LaTeX in the URL writes `//` where it means `\` (for example `//left(x+1//right)
 
 ### Expression evaluation
 
-Expressions are evaluated with compute-engine's **global** `assign('x', v)` followed by `EvaluateNumber(expr)` from `src/input-processing/Evaluate.js`. Don't call `.evaluate()` and pass the result to `Number()`: `.evaluate()` keeps exact forms like `1/2` or `sin(1)`, and those become NaN. `EvaluateNumber` returns NaN for undefined or complex results. Each evaluation costs about 0.01 ms in Node. Nested loops over these calls are where load time goes.
+`Processor` compiles every equation once with compute-engine's `compile()` (`CompileFunction` in `src/input-processing/Evaluate.js`) into a plain JS function: `f({x, y, z})` for surfaces and fields, `f({t})` for curves. That makes evaluation about 150× faster than evaluating through compute-engine at each sample. Point and vector coordinates are constants and use `EvaluateNumber`, which calls `.N()`. Both helpers return NaN where the result is undefined or complex.
+
+**Never call compute-engine's `assign()`.** `compile()` bakes globally assigned values into the code as constants, so one stray `assign('x', …)` silently breaks every function compiled after it. Tests included.
 
 ### Component contract
 
@@ -63,14 +65,32 @@ Every component returned by `GeometryContainer` has:
 - `out`: the `THREE.Object3D` (usually a `Group`) that gets added to the scene
 - `type`: the int above, which `GuiInit` uses in a `switch`
 
-Class-based components extend `GeometryParent`, which provides `scale` (default 10, max 75), `size = scale + 20` (marching-cubes grid resolution), `eqs`, `out`, and `checkRedundant()`. The class also exposes arrow-function callbacks that the GUI calls:
-- `Function.functionCallback()`: rebuilds the mesh when `scale` changes
-- `SpaceCurve.curveCallback()` rebuilds the curve when `scale` changes; `tCallback()` moves the point to `t`
-- `VectorField.vecsCallback(coord)`: re-lays-out arrows when `slices.{x,y,z}` (arrows per side of the origin, 0–10) changes. All arrows are drawn by one `InstancedMesh`, and field values are cached per grid point.
+Class-based components extend `GeometryParent`, which provides `scale` (default 10, max 75), `size = scale + 20` (marching-cubes grid resolution), `eqs` (compiled functions), `out`, and `checkRedundant()`. Their arrow-function callbacks are called by the GUI:
+- `Function`:
+  - `functionCallback()` rebuilds the mesh when `scale` (the GUI's "window width") changes.
+  - `setFocus(v)` resamples the window around the focal point.
+  - `focusTarget()` returns the drawn surface's center.
+  - `lowColor`/`highColor` are the gradient colors, shared with the shader uniforms.
+- `SpaceCurve`:
+  - `tRangeCallback()` redraws for t in [−`tRange`, `tRange`] (default 10, max 100).
+  - `tCallback()` moves the point to `t`.
+  - `focusTarget()` returns the point's position.
+- `VectorField`:
+  - `vecsCallback(coord)` re-lays-out arrows when `slices.{x,y,z}` (arrows per side of the center, 0–10) changes.
+  - `setFocus(v)` re-centers the grid on the grid point nearest the focal point.
+  - All arrows are drawn by one `InstancedMesh`, and field values are cached per absolute grid point.
 
 Point and Vector are still plain factories that return `{out, type}`.
 
 **To add a component type:** add a `Process*` function and a `PROCESSORS` entry in `Processor.js`, a `case` in `GeometryContainer.js`, and a `case` in `GuiInit` in `threejs-scene-init.js`. Return an object with `out` and `type`.
+
+## Viewer controls (`threejs-scene-init.js`)
+
+Scene graph: `scene` > `mathSpace` (rotated into Y-up, scaled by the global scale) > `focusGroup` (positioned at −focus) > axes + `Components` > one wrapper `Group` per component > `component.out`.
+
+- **Global scale:** 0.05–3×, set by the slider or a two-finger pinch on the canvas. A quick single-finger tap recenters the AR anchor.
+- **Focal point:** x/y/z sliders, plus a "center on" dropdown that snaps to a point, a vector's start, a curve's current point, or a surface's center. While a slider is dragging, content only translates. When the drag ends, components with `setFocus` (surfaces, vector fields) resample around the new focal point. A surface is drawn only inside its window around the focal point, so moving far away can make a surface leave its window; raise that surface's "window width" to bring it back.
+- **Per component:** visibility and "display size" (0.1–3×). Display size scales the component's wrapper about the focal point, so it changes how large the component looks, not its math.
 
 ## Coordinate conventions
 
@@ -85,8 +105,8 @@ All geometry is built in **math coordinates (z up)**. Don't swap axes inside com
 - Vite `base` is `/realmathAR/` to match the GitHub Pages path. Change it if you host somewhere else.
 - XR8's three.js pipeline module renders every frame, so components never need to call `renderer.render()` after changing.
 - `Vec` means displacement: the arrow's tail is at `init` and its tip at `init + vec`.
-- Ranges are inconsistent. A surface's `scale` covers [−scale/2, scale/2], while a space curve's covers t ∈ [−scale, scale]. The GUI labels both "axis +-range".
-- Marching cubes cost grows with `size³` (`size = scale + 20`): about 27k evaluations at the default and about 860k at the max scale of 75.
+- A surface's window is its `scale` width (the GUI's "window width") centered on the focal point. A space curve's extent is set separately by `tRange`.
+- Marching cubes cost grows with `size³` (`size = scale + 20`), but with compiled evaluation even the max window of 75 (about 860k samples) takes tens of milliseconds.
 - Import three.js add-ons by their specific path (for example `three/examples/jsm/lines/Line2.js`), not from `Addons.js`, which pulls in every add-on. Use the WebGL versions of add-ons, not the `webgpu/` ones.
 - The marching-cubes and lookup-table code is adapted from MIT-licensed tamani-coding and from stemkoski/Paul Bourke. Keep those attribution headers.
 - `public/xr/` is the 8th Wall / Niantic XR Engine under its own license (`public/xr/LICENSE`). Don't edit it.
