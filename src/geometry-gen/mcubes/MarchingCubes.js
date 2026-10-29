@@ -34,8 +34,6 @@ const isolevel = 0
 /// //////////////////////////////////////////////////////////////////////////////////
 /* samples equation on a size^3 grid spanning [-scale/2, scale/2] on each axis */
 export const MarchingCubes = (equation, scale, size) => {
-  /* eslint-disable-next-line no-console */
-  console.log(`MARCHING CUBES SIZE:${size} SCALE:${scale}`)
   // containers
   const values = []  // type: Number
   const points = []  // type: THREE.Vector3
@@ -55,8 +53,6 @@ export const MarchingCubes = (equation, scale, size) => {
       }
     }
   }
-  /* eslint-disable-next-line no-console */
-  console.log(`WE HAVE ${points.length} POINTS`)
 
   // approximated intersection points
   const vlist = new Array(12)

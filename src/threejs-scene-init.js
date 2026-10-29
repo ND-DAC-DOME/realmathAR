@@ -1,20 +1,7 @@
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import GUI from 'lil-gui'
 import { Parser } from './input-processing/Parser';
 import { Processor } from './input-processing/Processor';
-
-/* *******************************TODO**********************************
-  * Migrate to lil-gui, dat-gui is outdated
-  * * lil-gui also supports easier color sliders
-  * Untangle gui callbacks
-  * Make axis generation less messy
-  *  *  tbh just move back to axis helper probably
-  * Add color changer callbacks
-  * Update to current mathlive
-  * ???
-  * profit
-********************************************************************* */
 
 /* initializing range constraints + steps */
 const GlobalRanges =    {
@@ -23,11 +10,9 @@ const GlobalRanges =    {
                         }
 
 export const initScenePipelineModule = () => {
-  const purple = 0xAD50FF
-
-  // Populates a cube into an XR scene and sets the initial camera position.
+  // Populates the graph components into an XR scene and sets the initial camera position.
   const initXrScene = ({scene, camera, renderer}) => {
-    // Enable shadows in the rednerer.
+    // Enable shadows in the renderer.
     renderer.shadowMap.enabled = true
 
     // Add some light to the scene.
@@ -146,22 +131,28 @@ export const initScenePipelineModule = () => {
     /* *************************************************************************************** */
 
     /* extract components from URL, init their GUIs, prepare for scene addition */
-    Processor(Parser()).map((component) => {
-      console.log(component)
-      let [name, obj] = component
-      console.log(obj)
-      let newFolder = gui.addFolder(name)
-      GuiInit(newFolder, obj)
+    const {inputs, error} = Parser()
+    const {components, errors} = Processor(inputs)
+    components.forEach(([name, obj]) => {
+      GuiInit(gui.addFolder(name), obj)
       Components.add(obj.out)
     })
 
-    console.log('components complete')
+    /* surface input problems in the gui, not just the console */
+    if (error !== null) {
+      errors.unshift({name: 'URL', message: error})
+    }
+    if (errors.length > 0) {
+      const errorFolder = gui.addFolder('Input Errors')
+      errors.forEach(({name, message}) => {
+        console.error(`${name}: ${message}`)
+        errorFolder.add({message}, 'message').name(name).disable()
+      })
+    }
 
     // Set the initial camera position relative to the scene we just laid out. This must be at a
     // height greater than y=0.
     camera.position.set(0, 2, 1)
-
-    console.log(Components)
   };
 
   // Return a camera pipeline module that adds scene elements on start.
@@ -174,9 +165,7 @@ export const initScenePipelineModule = () => {
     // XR8.Threejs scene to be ready before we can access it to add content. It was created in
     // XR8.Threejs.pipelineModule()'s onStart method.
     onStart: ({canvas}) => {
-      console.log('in onStart')
       const {scene, camera, renderer} = XR8.Threejs.xrScene()  // Get the 3js scene from XR8.Threejs
-      console.log(camera)
 
       initXrScene({scene, camera, renderer})  // Add objects set the starting camera position.
 
@@ -185,7 +174,7 @@ export const initScenePipelineModule = () => {
         event.preventDefault()
       })
 
-      // Sync the xr controller's 6DoF position and camera paremeters with our scene.
+      // Sync the xr controller's 6DoF position and camera parameters with our scene.
       XR8.XrController.updateCameraProjectionMatrix(
         {origin: camera.position, facing: camera.quaternion}
       )

@@ -1,6 +1,7 @@
 import { Vector3 } from "three"
+import { parse } from "@cortex-js/compute-engine";
 import { GeometryContainer } from "../geometry-gen/GeometryContainer"
-import { simplify, evaluate, N, assign, parse } from "@cortex-js/compute-engine";
+import { EvaluateNumber } from "./Evaluate"
 
 /* parentheses shorthand */
 const PL = '//left('
@@ -11,161 +12,98 @@ const PR = '//right)'
   threejs-scene-init rotates the containing group into 8th wall's y-up world
  */
 
-/* helper keeps me from having to rewrite */
-/* create the equation w/ added safeguards for potential missing vars */
-const EquationHelper = (value, type) => {
-  if (type === 'func') {
-    return `${PL}${value.left}${PR}-${PL}${value.right}${PR}
-            +${PL}0*x${PR}+${PL}0*y${PR}+${PL}0*z${PR}`
-  } else if (type === 'vfld') {
-    return `${PL}${value}${PR}+${PL}0*x${PR}+${PL}0*y${PR}+
-            ${PL}0*z${PR}`
-  } else {
-    return `${PL}${value}${PR}+${PL}0*t${PR}`
-  }
+/* parses latex (with // standing in for \), throwing on invalid input */
+const ParseLatex = (latex) => {
+    if (typeof latex !== 'string') {
+        throw new Error(`expected a LaTeX string, got ${JSON.stringify(latex)}`)
+    }
+    const expr = parse(latex.replaceAll('//', '\\'))  // fixes latex delimiters
+    if (!expr.isValid) {
+        throw new Error(`invalid LaTeX "${latex}"`)
+    }
+    return expr
+}
+
+/* parses latex w/ added safeguards for potential missing vars */
+const ParseEquation = (latex, vars) => {
+    ParseLatex(latex)  // validate user input on its own for a clearer error
+    return ParseLatex(`${PL}${latex}${PR}` + vars.map((v) => `+${PL}0*${v}${PR}`).join(''))
+}
+
+/* parses {x, y, z} equations in the given vars */
+const ParseEquations = (value, vars) => {
+    const eqs = {}
+    for (const element of ['x', 'y', 'z']) {
+        eqs[element] = ParseEquation(value[element], vars)
+    }
+    return eqs
+}
+
+/* parses {x, y, z} constants (e.g. "//pi" or "//frac{1}{2}") into a Vector3 */
+const ParseCoords = (value) => {
+    const coords = ['x', 'y', 'z'].map((element) => {
+        const result = EvaluateNumber(ParseLatex(value[element]))
+        if (!Number.isFinite(result)) {
+            throw new Error(`${element} = "${value[element]}" is not a number`)
+        }
+        return result
+    })
+    return new Vector3(...coords)
 }
 
 const ProcessFunc = (value) => {
-    /* create the equation w/ added safeguards for potential missing vars */
-    const eqstring = EquationHelper(value, 'func')
-    /* eslint-disable-next-line no-console */
-    console.log(eqstring)
-    const eq = parse(eqstring.replaceAll('//', '\\'))  // fixes latex delimiters
-    /* eslint-disable-next-line no-console */
-    console.log(eq.json)
+    ParseLatex(value.left)
+    ParseLatex(value.right)
     return GeometryContainer(0, {
-        eqs: eq, 
-        scalein: null, 
-        sizein: null, 
-        color: 0xda0fdf,
+        eqs: ParseEquation(`${PL}${value.left}${PR}-${PL}${value.right}${PR}`, ['x', 'y', 'z']),
     })
 }
 
-const ProcessCurve = (value, scale=10) => {
-    try {
-        const eqs = {}
-        for (const element of ['x', 'y', 'z']) {
-        let eqstring = EquationHelper(value[element], 'scrv')
-        eqs[element] = parse(eqstring.replaceAll('//', '\\'))  // fixes latex delimiters
-        }
-        const curve = GeometryContainer(4, {
-            eqs: eqs, 
-            scale: scale, 
-            color: 0x0000ff, 
-            color2: 0xda0fff,
-        })
-        return curve
-    } catch (e) {
-        /* eslint-disable-next-line no-console */
-        console.log(`INVALID CURVE ERROR: ${e}`)
-        return -1
-    }
+const ProcessCurve = (value) => GeometryContainer(4, {
+    eqs: ParseEquations(value, ['t']),
+    color: 0x0000ff,
+    color2: 0xda0fff,
+})
+
+/* vec drawn from init (tail) to init + vec (tip) */
+const ProcessVec = (value) => GeometryContainer(2, {
+    init: ParseCoords(value.init),
+    vec: ParseCoords(value.vec),
+    color: 0x00aaff,
+})
+
+const ProcessVFld = (value) => GeometryContainer(3, {
+    eqs: ParseEquations(value, ['x', 'y', 'z']),
+})
+
+const ProcessPt = (value) => GeometryContainer(1, {
+    pos: ParseCoords(value),
+    color: 0xffff00,
+})
+
+/* first word of each input key picks its processor */
+const PROCESSORS = {
+    Func: ProcessFunc,
+    Vec: ProcessVec,
+    Pt: ProcessPt,
+    SCrv: ProcessCurve,
+    VFld: ProcessVFld,
 }
 
-const ProcessVec = (value, color=0x00aaff) => {
-    try {
-        /* direction vector */
-        const vec = new Vector3(
-        Number(`${parse(value.vec.x).value}`),
-        Number(`${parse(value.vec.y).value}`),
-        Number(`${parse(value.vec.z).value}`)
-        )
-        /* ie, known point of intersection */
-        const init = new Vector3(
-        Number(`${parse(value.init.x).value}`),
-        Number(`${parse(value.init.y).value}`),
-        Number(`${parse(value.init.z).value}`)
-        )
-        /* make the line eddboy */
-        return GeometryContainer(2, {
-            init: init, 
-            vec: vec,
-            color: color
-        })
-    } catch (e) {
-        /* eslint-disable-next-line no-console */
-        console.log(`VEC PARSING ERROR: ${e}`)
-        return -1
-    }
-}
-
-const ProcessVFld = (value, sliceranges=[9, 9, 1], scale=10) => {
-    try {
-        const eqs = {}
-        for (const element of ['x', 'y', 'z']) {
-        let eqstring = EquationHelper(value[element], 'vfld')
-        eqs[element] = parse(eqstring.replaceAll('//', '\\'))  // fixes latex delimiters
-        }
-        const vfld = GeometryContainer(3, {
-            eqs: eqs, 
-            scale: scale, 
-            sliceranges: sliceranges, 
-            update: false
-        })
-        /* eslint-disable-next-line no-console */
-        console.log('vfld made')
-        return vfld
-    } catch (e) {
-        /* eslint-disable-next-line no-console */
-        console.log(`INVALID VFLD ERROR: ${e}`)
-        return -1
-    }
-}
-
-const ProcessPt = (value, color=0xffff00) => {
-    try {
-        /* point coords */
-        const vec = new Vector3(
-        Number(`${parse(value.x).value}`),
-        Number(`${parse(value.y).value}`),
-        Number(`${parse(value.z).value}`)
-        )
-        return GeometryContainer(1, {
-            pos: vec,
-            color: color
-        })
-    } catch (e) {
-        /* eslint-disable-next-line no-console */
-        console.log(`PT PARSING ERROR: ${e}`)
-        return -1
-    }
-}
-
+/* returns built components as [name, component] pairs, plus {name, message} for any that failed */
 export const Processor = (inputs) => {
     const components = []
-    if (inputs) {
-        for (const [key, value] of Object.entries(inputs)) {
-            /* type of graph component changes how we process */
-            const type = key.split(' ')[0]
-            /* eslint-disable-next-line no-console */
-            console.log(`TYPE: ${type}`)
-            /* eslint-disable-next-line no-console */
-            console.log(value)
-            let returnval = -1
-            switch (type) {
-                case 'Func':
-                    returnval = ProcessFunc(value)
-                    break
-                case 'Vec':
-                    returnval = ProcessVec(value)
-                    break
-                case 'Pt':
-                    returnval = ProcessPt(value)
-                    break
-                case 'SCrv':
-                    returnval = ProcessCurve(value)
-                    break
-                case 'VFld':
-                    returnval = ProcessVFld(value)
-                    break
-                default:
-                    returnval = -1
+    const errors = []
+    for (const [key, value] of Object.entries(inputs ?? {})) {
+        const type = key.split(' ')[0]
+        try {
+            if (!Object.hasOwn(PROCESSORS, type)) {
+                throw new Error(`unknown type "${type}"`)
             }
-            if (returnval !== -1) {
-                components.push([key, returnval])
-            }
+            components.push([key, PROCESSORS[type](value)])
+        } catch (e) {
+            errors.push({name: key, message: e.message})
         }
     }
-    // TODO: ADD ERROR FLAGS
-    return components
+    return {components, errors}
 }

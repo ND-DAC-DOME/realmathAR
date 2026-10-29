@@ -5,10 +5,7 @@ import * as THREE from 'three';
 
 window.THREE = THREE
 
-console.log('before onxrloaded');
-
 const onxrloaded = () => {  
-  console.log('entered onxrloaded')
   XR8.addCameraPipelineModules([  // Add camera pipeline modules.
     // Existing pipeline modules.
     XR8.GlTextureRenderer.pipelineModule(),      // Draws the camera feed.
@@ -21,10 +18,8 @@ const onxrloaded = () => {
     // Custom pipeline modules.
     initScenePipelineModule(),  // Sets up the threejs camera and scene content.
   ]);
-  console.log('scene initialized')
 
   const canvas = document.getElementById('camerafeed')
-  console.log(canvas)
   // Open the camera and start running the camera run loop.
   XR8.run({canvas})
 }

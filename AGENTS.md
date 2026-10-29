@@ -15,11 +15,12 @@ npm install
 npm run serve      # vite dev server at http://localhost:5173/realmathAR/
 npm run build      # production build -> dist/
 npm run preview    # serve dist/
+npm test           # vitest, runs headless in Node (tests/)
 ```
 
-- There are no tests, linter, or formatter configured. (Stray `eslint-disable` comments are left over from an earlier setup.)
+- Tests in `tests/` cover parsing, evaluation, and geometry building (no AR or rendering). Add a test when you fix a math or geometry bug. There's no linter or formatter. (Stray `eslint-disable` comments are left over from an earlier setup.)
 - AR needs a phone camera and HTTPS. `vite.config.js` allows `.ngrok-free.dev` hosts, so tunnel the dev server with ngrok to test on a device.
-- Deploys to GitHub Pages via `.github/workflows/deploy.yml` on every push to `main`.
+- Deploys to GitHub Pages via `.github/workflows/deploy.yml` on every push to `main`, after `npm test` passes.
 
 ## Runtime flow
 
@@ -29,15 +30,15 @@ index.html
   ├─ XRExtras + LandingPage          from jsDelivr CDN
   └─ src/app.js                      waits for `xrloaded`, registers camera pipeline modules, XR8.run()
        └─ src/threejs-scene-init.js  initScenePipelineModule(): onStart builds the scene + GUI
-            ├─ Parser()              src/input-processing/Parser.js   URL -> JSON (or defaults)
-            ├─ Processor(json)       src/input-processing/Processor.js JSON -> [[name, component], ...]
+            ├─ Parser()              src/input-processing/Parser.js    URL -> {inputs, error} (defaults if missing/invalid)
+            ├─ Processor(inputs)     src/input-processing/Processor.js -> {components: [[name, component]], errors: [{name, message}]}
             │    └─ GeometryContainer(type, props)  src/geometry-gen/GeometryContainer.js
             └─ GuiInit(folder, component)  per-component lil-gui controls
 ```
 
 ### Input format (Parser.js)
 
-The input JSON is URL-encoded in the `eqs` query parameter (`<app url>?eqs=<encodeURIComponent(json)>`). The legacy format, with the encoded JSON appended right after `https://ndlearning.8thwall.app/realmath/`, is still accepted. The page that generates these URLs lives elsewhere, not in this repo. If there is no input or it fails to parse, Parser returns the hard-coded `defaults` object.
+The input JSON is URL-encoded in the `eqs` query parameter (`<app url>?eqs=<encodeURIComponent(json)>`). The legacy format, with the encoded JSON appended right after `https://ndlearning.8thwall.app/realmath/`, is still accepted. The page that generates these URLs lives elsewhere, not in this repo. If there is no input or it fails to parse, Parser falls back to the hard-coded `defaults` (and returns an `error` for bad JSON).
 
 The first word of each key sets the component type (`"Func 1"`, `"Vec 2"`, etc.):
 
@@ -49,7 +50,7 @@ The first word of each key sets the component type (`"Func 1"`, `"Vec 2"`, etc.)
 | `VFld` | `{x, y, z}`: field components in x,y,z | 3 | `complex-geometry/VectorFieldClass.js` |
 | `SCrv` | `{x, y, z}`: parametric in t | 4 | `complex-geometry/SpaceCurveClass.js` |
 
-LaTeX in the URL writes `//` where it means `\` (for example `//left(x+1//right)^2`). Processor converts `//` back to `\` before passing the string to `@cortex-js/compute-engine`'s `parse()`. `EquationHelper` appends `+(0*x)+(0*y)+(0*z)` (or `+(0*t)`) so every expression references every variable.
+LaTeX in the URL writes `//` where it means `\` (for example `//left(x+1//right)^2`). Processor converts `//` back to `\` before passing the string to `@cortex-js/compute-engine`'s `parse()`. `ParseEquation` appends `+(0*x)+(0*y)+(0*z)` (or `+(0*t)`) so every expression references every variable. Invalid LaTeX doesn't throw in compute-engine (it returns an expression with `isValid === false`), so `ParseLatex` checks validity and throws. `Processor` catches per component, and the errors appear in an "Input Errors" GUI folder. `Pt`/`Vec` coordinates must evaluate to finite constants.
 
 ### Expression evaluation
 
@@ -68,7 +69,7 @@ Class-based components extend `GeometryParent`, which provides `scale` (default 
 
 Point and Vector are still plain factories that return `{out, type}`.
 
-**To add a component type:** add a `Process*` function and a `case` in `Processor.js`, a `case` in `GeometryContainer.js`, and a `case` in `GuiInit` in `threejs-scene-init.js`. Return an object with `out` and `type`.
+**To add a component type:** add a `Process*` function and a `PROCESSORS` entry in `Processor.js`, a `case` in `GeometryContainer.js`, and a `case` in `GuiInit` in `threejs-scene-init.js`. Return an object with `out` and `type`.
 
 ## Coordinate conventions
 

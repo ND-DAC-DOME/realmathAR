@@ -1,5 +1,5 @@
 import { MarchingCubes } from "../mcubes/MarchingCubes"
-import { Float32BufferAttribute, ShaderMaterial, Color, DoubleSide, BufferGeometry, Mesh, Group } from "three"
+import { Float32BufferAttribute, ShaderMaterial, Color, DoubleSide, BufferGeometry, Mesh } from "three"
 import { GeometryParent } from "../GeometryParent"
 
 export class Function extends GeometryParent {
@@ -7,14 +7,12 @@ export class Function extends GeometryParent {
         super(0, props.eqs)
         this.colors = [new Color(0X2D0075), new Color(0x60EFFF)]
         this.MeshGetter()
-        this.prevMaxes = {x: this.xMax, y: this.yMax, z: this.zMax}
     }
 
     PointGetter () {
         /* generates points using marching cubes alg */
         const trianglePoints = MarchingCubes(this.eqs, this.scale, this.size)
-        const maxPolygons = 30000
-        const vertices = Array(3 * maxPolygons).fill(0)
+        const vertices = new Float32Array(3 * trianglePoints.length)
         /* faces */
         for (let i = 0; i < trianglePoints.length; i++) {
             const [x, y, z]     = trianglePoints[i]

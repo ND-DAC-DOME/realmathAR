@@ -1,4 +1,4 @@
-import { Vector3, LineBasicMaterial, BufferGeometry, Line, Group } from 'three'
+import { Vector3, LineBasicMaterial, BufferGeometry, Line } from 'three'
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import { Line2 } from 'three/examples/jsm/lines/Line2.js'
