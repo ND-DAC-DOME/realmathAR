@@ -1,7 +1,5 @@
 import {edgeTable, triTable} from './MarchingCubesData'
 import { Vector3 } from 'three'
-import { assign } from "@cortex-js/compute-engine";
-import { EvaluateNumber } from "../../input-processing/Evaluate";
 
 /* surface is where the equation (left - right) is 0 */
 const isolevel = 0
@@ -32,27 +30,31 @@ const isolevel = 0
 ///   SOFTWARE.
 ///   stemkoski license not provided
 /// //////////////////////////////////////////////////////////////////////////////////
-/* samples equation on a size^3 grid spanning [-scale/2, scale/2] on each axis */
-export const MarchingCubes = (equation, scale, size) => {
-  // containers
-  const values = []  // type: Number
-  const points = []  // type: THREE.Vector3
-  // generate the list of 3D points and the corresponding values
+/**
+ * samples fn({x, y, z}) on a size^3 grid spanning center +- scale/2 on each axis
+ * returns triangle vertices (Vector3, every 3 make a face) of the surface fn = 0
+ */
+export const MarchingCubes = (fn, center, scale, size) => {
+  /* grid index -> coordinate along each axis */
+  const coord = (i, c) => c - (scale / 2) + (scale * i) / (size - 1)
+  /* scalar values, indexed i + size * j + size^2 * k; NaN where undefined */
+  const values = new Float64Array(size * size * size)
+  let n = 0
   for (let k = 0; k < size; k++) {
+    const z = coord(k, center.z)
     for (let j = 0; j < size; j++) {
+      const y = coord(j, center.y)
       for (let i = 0; i < size; i++) {
-        const x = -(scale / 2) + (scale * i) / (size - 1)
-        const y = -(scale / 2) + (scale * j) / (size - 1)
-        const z = -(scale / 2) + (scale * k) / (size - 1)
-        points.push(new Vector3(x, y, z))
-        assign('x', x)
-        assign('y', y)
-        assign('z', z)
-        /* always push (even NaN) so values stay index-aligned with points */
-        values.push(EvaluateNumber(equation))
+        values[n++] = fn({x: coord(i, center.x), y, z})
       }
     }
   }
+  /* sample index -> its position, built only for cubes the surface crosses */
+  const point = (p) => new Vector3(
+    coord(p % size, center.x),
+    coord(Math.floor(p / size) % size, center.y),
+    coord(Math.floor(p / (size * size)), center.z)
+  )
 
   // approximated intersection points
   const vlist = new Array(12)
@@ -128,53 +130,53 @@ export const MarchingCubes = (equation, scale, size) => {
         // bottom of the cube
         if (bits & 1) {		
           mu = (isolevel - value0) / (value1 - value0)
-          vlist[0] = points[p].clone().lerp(points[px], mu)
+          vlist[0] = point(p).lerp(point(px), mu)
         }
         if (bits & 2) {
           mu = (isolevel - value1) / (value3 - value1)
-          vlist[1] = points[px].clone().lerp(points[pxy], mu)
+          vlist[1] = point(px).lerp(point(pxy), mu)
         }
         if (bits & 4) {
           mu = (isolevel - value2) / (value3 - value2)
-          vlist[2] = points[py].clone().lerp(points[pxy], mu)
+          vlist[2] = point(py).lerp(point(pxy), mu)
         }
         if (bits & 8) {
           mu = (isolevel - value0) / (value2 - value0)
-          vlist[3] = points[p].clone().lerp(points[py], mu)
+          vlist[3] = point(p).lerp(point(py), mu)
         }
         // top of the cube
         if (bits & 16) {
           mu = (isolevel - value4) / (value5 - value4)
-          vlist[4] = points[pz].clone().lerp(points[pxz], mu)
+          vlist[4] = point(pz).lerp(point(pxz), mu)
         }
         if (bits & 32) {
           mu = (isolevel - value5) / (value7 - value5)
-          vlist[5] = points[pxz].clone().lerp(points[pxyz], mu)
+          vlist[5] = point(pxz).lerp(point(pxyz), mu)
         }
         if (bits & 64) {
           mu = (isolevel - value6) / (value7 - value6)
-          vlist[6] = points[pyz].clone().lerp(points[pxyz], mu)
+          vlist[6] = point(pyz).lerp(point(pxyz), mu)
         }
         if (bits & 128) {
           mu = (isolevel - value4) / (value6 - value4)
-          vlist[7] = points[pz].clone().lerp(points[pyz], mu)
+          vlist[7] = point(pz).lerp(point(pyz), mu)
         }
         // vertical lines of the cube
         if (bits & 256) {
           mu = (isolevel - value0) / (value4 - value0)
-          vlist[8] = points[p].clone().lerp(points[pz], mu)
+          vlist[8] = point(p).lerp(point(pz), mu)
         }
         if (bits & 512) {
           mu = (isolevel - value1) / (value5 - value1)
-          vlist[9] = points[px].clone().lerp(points[pxz], mu)
+          vlist[9] = point(px).lerp(point(pxz), mu)
         }
         if (bits & 1024) {
           mu = (isolevel - value3) / (value7 - value3)
-          vlist[10] = points[pxy].clone().lerp(points[pxyz], mu)
+          vlist[10] = point(pxy).lerp(point(pxyz), mu)
         }
         if (bits & 2048) {
           mu = (isolevel - value2) / (value6 - value2)
-          vlist[11] = points[py].clone().lerp(points[pyz], mu)
+          vlist[11] = point(py).lerp(point(pyz), mu)
         }
 
         // lookup triangles

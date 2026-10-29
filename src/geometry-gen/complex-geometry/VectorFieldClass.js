@@ -4,8 +4,6 @@ import {
     InstancedMesh, InstancedBufferAttribute, MeshToonMaterial,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { assign } from '@cortex-js/compute-engine'
-import { EvaluateNumber } from '../../input-processing/Evaluate'
 
 const UP = new Vector3(0, 1, 0)
 
@@ -20,14 +18,16 @@ const ArrowGeometry = () => {
 
 export class VectorField extends GeometryParent {
     static STEP = 1         // spacing between arrows
-    static MAXSLICES = 10   // max arrows on each side of the origin, per axis
+    static MAXSLICES = 10   // max arrows on each side of the center, per axis
     constructor (props) {
         /* initialize super and vars */
         super(3, props.eqs)
-        /* # of arrows on each side of the origin, per axis */
+        /* # of arrows on each side of the center, per axis */
         this.slices = {x: 5, y: 5, z: 0}
         this.prevSlices = {...this.slices}
-        /* evaluated vectors keyed by grid point, so slider changes don't reeval */
+        /* grid point the arrows are centered on (focal point, snapped to the grid) */
+        this.center = new Vector3()
+        /* evaluated vectors keyed by grid point, so slider/focus changes don't reeval */
         this.cache = new Map()
         /* one instanced mesh draws every arrow in a single draw call */
         const maxCount = (2 * this.constructor.MAXSLICES + 1) ** 3
@@ -43,12 +43,10 @@ export class VectorField extends GeometryParent {
         const key = `${i},${j},${k}`
         if (!this.cache.has(key)) {
             const step = this.constructor.STEP
-            assign('x', i * step)
-            assign('y', j * step)
-            assign('z', k * step)
+            const at = {x: i * step, y: j * step, z: k * step}
             let vec = new Vector3()
             for (const element of ['x', 'y', 'z']) {
-                const result = EvaluateNumber(this.eqs[element])
+                const result = this.eqs[element](at)
                 if (!Number.isFinite(result)) {
                     vec = null
                     break
@@ -64,6 +62,7 @@ export class VectorField extends GeometryParent {
     getVecs () {
         const step = this.constructor.STEP
         const {x: nx, y: ny, z: nz} = this.slices
+        const {x: cx, y: cy, z: cz} = this.center
         const matrix = new Matrix4()
         const quat = new Quaternion()
         const pos = new Vector3()
@@ -71,9 +70,9 @@ export class VectorField extends GeometryParent {
         const dir = new Vector3()
         const color = new Color()
         let count = 0
-        for (let i = -nx; i <= nx; i++) {
-            for (let j = -ny; j <= ny; j++) {
-                for (let k = -nz; k <= nz; k++) {
+        for (let i = cx - nx; i <= cx + nx; i++) {
+            for (let j = cy - ny; j <= cy + ny; j++) {
+                for (let k = cz - nz; k <= cz + nz; k++) {
                     const vec = this.evalAt(i, j, k)
                     /* skip undefined and zero vectors, which have no direction */
                     if (vec === null || vec.lengthSq() === 0) {
@@ -103,5 +102,18 @@ export class VectorField extends GeometryParent {
             this.prevSlices[coord] = this.slices[coord]
             this.getVecs()
         }
+    }
+
+    /* recenter the grid on the grid point nearest a new focal point */
+    setFocus = (focus) => {
+        const step = this.constructor.STEP
+        const center = new Vector3(
+            Math.round(focus.x / step), Math.round(focus.y / step), Math.round(focus.z / step)
+        )
+        if (this.center.equals(center)) {
+            return
+        }
+        this.center.copy(center)
+        this.getVecs()
     }
 }

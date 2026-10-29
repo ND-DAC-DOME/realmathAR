@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parse } from '@cortex-js/compute-engine'
+import { CompileFunction } from '../src/input-processing/Evaluate'
 import { Group, Vector3, Matrix4, Quaternion } from 'three'
 import { MarchingCubes } from '../src/geometry-gen/mcubes/MarchingCubes'
 import { Function } from '../src/geometry-gen/complex-geometry/FunctionClass'
@@ -7,16 +8,31 @@ import { VectorField } from '../src/geometry-gen/complex-geometry/VectorFieldCla
 import { SpaceCurve } from '../src/geometry-gen/complex-geometry/SpaceCurveClass'
 import { Vector } from '../src/geometry-gen/base-geometry/Vector'
 
-/* mirrors Processor's 0*var padding */
-const eq = (latex, vars) => parse(`\\left(${latex}\\right)` + vars.map((v) => `+\\left(0*${v}\\right)`).join(''))
+/* mirrors Processor: 0*var padding, compiled to f({...vars}) */
+const eq = (latex, vars) => CompileFunction(parse(`\\left(${latex}\\right)` + vars.map((v) => `+\\left(0*${v}\\right)`).join('')))
 const XYZ = ['x', 'y', 'z']
 
 describe('MarchingCubes', () => {
     it('draws the surface where the equation is 0', () => {
-        const points = MarchingCubes(eq('x^2+y^2+z^2-4', XYZ), 10, 30)
+        const points = MarchingCubes(eq('x^2+y^2+z^2-4', XYZ), new Vector3(), 10, 30)
         const radii = points.map((p) => p.length())
         expect(Math.min(...radii)).toBeGreaterThan(1.95)
         expect(Math.max(...radii)).toBeLessThan(2.05)
+    })
+
+    it('samples around the given center', () => {
+        const center = new Vector3(20, 0, 0)
+        const sphere = eq('(x-20)^2+y^2+z^2-4', XYZ)
+        expect(MarchingCubes(sphere, new Vector3(), 10, 30)).toHaveLength(0)  // out of the default window
+        const radii = MarchingCubes(sphere, center, 10, 30).map((p) => p.distanceTo(center))
+        expect(Math.min(...radii)).toBeGreaterThan(1.95)
+        expect(Math.max(...radii)).toBeLessThan(2.05)
+    })
+
+    it('is fast enough for many large surfaces', () => {
+        const start = performance.now()
+        MarchingCubes(eq('\\sin(x)+\\cos(y)-z', XYZ), new Vector3(), 75, 95)  // max window
+        expect(performance.now() - start).toBeLessThan(3000)
     })
 })
 
@@ -29,6 +45,21 @@ describe('Function', () => {
         f.functionCallback()
         expect(disposed).toBe(true)
         expect(f.out.children).toHaveLength(1)
+    })
+
+    it('resamples around a new focal point and reports its center', () => {
+        const f = new Function({ eqs: eq('(x-20)^2+y^2+z^2-4', XYZ) })
+        expect(f.focusTarget()).toBeNull()  // nothing in the default window
+        f.setFocus(new Vector3(20, 0, 0))
+        const center = f.focusTarget()
+        expect(center.x).toBeCloseTo(20, 1)
+        expect(center.y).toBeCloseTo(0, 1)
+    })
+
+    it('exposes gradient colors that the material uses directly', () => {
+        const f = new Function({ eqs: eq('x^2+y^2-z', XYZ) })
+        f.lowColor.set(0xff0000)
+        expect(f.mesh.material.uniforms.color1.value.getHex()).toBe(0xff0000)
     })
 })
 
@@ -62,6 +93,14 @@ describe('VectorField', () => {
         vf.vecsCallback('x')
         expect(vf.mesh.count).toBeGreaterThan(9000)
     })
+
+    it('recenters its grid on the focal point', () => {
+        const vf = field('x-xy', 'x-y', '0')
+        vf.setFocus(new Vector3(30.4, 0, 0))  // snaps to grid point 30
+        expect(arrowAt(vf, new Vector3(3, 0, 0))).toBeNull()
+        const dir = arrowAt(vf, new Vector3(30, 1, 0))  // F = (30 - 30, 29, 0)
+        expect(dir.y).toBeCloseTo(1)
+    })
 })
 
 describe('SpaceCurve', () => {
@@ -71,12 +110,22 @@ describe('SpaceCurve', () => {
             color: 0x0000ff,
             color2: 0xff00ff,
         })
-        expect(sc.zeropoint).toEqual({ x: 1, y: 0, z: 0 })
+        expect(sc.point.position.toArray()).toEqual([1, 0, 0])
         sc.t = Math.PI / 2
         sc.tCallback()
         expect(sc.point.position.x).toBeCloseTo(0)
         expect(sc.point.position.y).toBeCloseTo(1)
         expect(sc.point.position.z).toBeCloseTo(Math.PI / 20)
+    })
+
+    it('redraws over a new t-range', () => {
+        const sc = new SpaceCurve({ eqs: { x: eq('t', ['t']), y: eq('0', ['t']), z: eq('0', ['t']) } })
+        const extent = () => { sc.line.geometry.computeBoundingBox(); return sc.line.geometry.boundingBox }
+        expect(extent().max.x).toBeCloseTo(10)
+        sc.tRange = 3
+        sc.tRangeCallback()
+        expect(extent().min.x).toBeCloseTo(-3)
+        expect(extent().max.x).toBeCloseTo(3)
     })
 })
 

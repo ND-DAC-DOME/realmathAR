@@ -1,24 +1,36 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { parse, assign } from '@cortex-js/compute-engine'
-import { EvaluateNumber } from '../src/input-processing/Evaluate'
+import { parse } from '@cortex-js/compute-engine'
+import { EvaluateNumber, CompileFunction } from '../src/input-processing/Evaluate'
 import { Parser } from '../src/input-processing/Parser'
 import { Processor } from '../src/input-processing/Processor'
 import LZString from 'lz-string'
 
 const at = (href) => vi.stubGlobal('window', { location: { href, search: new URL(href).search } })
 
+/* NOTE: no assign() here -- it would leak into compile() in later tests */
 describe('EvaluateNumber', () => {
     it('returns numbers for exact forms that .evaluate() leaves symbolic', () => {
-        assign('x', 2)
-        expect(EvaluateNumber(parse('\\frac{1}{x}'))).toBe(0.5)
-        expect(EvaluateNumber(parse('\\sqrt{x}'))).toBeCloseTo(Math.SQRT2)
+        expect(EvaluateNumber(parse('\\frac{1}{2}'))).toBe(0.5)
+        expect(EvaluateNumber(parse('\\sqrt{2}'))).toBeCloseTo(Math.SQRT2)
         expect(EvaluateNumber(parse('\\sin(1)'))).toBeCloseTo(Math.sin(1))
     })
 
     it('returns NaN for complex and undefined results', () => {
-        assign('x', 2)
-        expect(EvaluateNumber(parse('\\sqrt{-x}'))).toBeNaN()
-        expect(EvaluateNumber(parse('\\frac{1}{x-2}'))).toBeNaN()
+        expect(EvaluateNumber(parse('\\sqrt{-2}'))).toBeNaN()
+        expect(EvaluateNumber(parse('\\frac{1}{0}'))).toBeNaN()
+    })
+})
+
+describe('CompileFunction', () => {
+    it('compiles to a function of its vars', () => {
+        const f = CompileFunction(parse('\\sin(x)+y^2-\\frac{z}{2}'))
+        expect(f({ x: 1, y: 2, z: 3 })).toBeCloseTo(Math.sin(1) + 4 - 1.5)
+        expect(f({ x: 0, y: 0, z: 0 })).toBeCloseTo(0)
+    })
+
+    it('returns NaN where undefined', () => {
+        expect(CompileFunction(parse('\\sqrt{x}'))({ x: -1 })).toBeNaN()
+        expect(CompileFunction(parse('\\ln(x)'))({ x: -1 })).toBeNaN()
     })
 })
 
