@@ -53,7 +53,7 @@ LaTeX in the URL writes `//` where it means `\` (for example `//left(x+1//right)
 
 ### Expression evaluation
 
-Expressions are evaluated with compute-engine's **global** `assign('x', v)` followed by `expr.evaluate()`, and the result is stringified and then converted with `Number()`. Each evaluation costs about 0.02 ms in Node. Nested loops over these calls are where load time goes.
+Expressions are evaluated with compute-engine's **global** `assign('x', v)` followed by `EvaluateNumber(expr)` from `src/input-processing/Evaluate.js`. Don't call `.evaluate()` and pass the result to `Number()`: `.evaluate()` keeps exact forms like `1/2` or `sin(1)`, and those become NaN. `EvaluateNumber` returns NaN for undefined or complex results. Each evaluation costs about 0.01 ms in Node. Nested loops over these calls are where load time goes.
 
 ### Component contract
 
@@ -64,7 +64,7 @@ Every component returned by `GeometryContainer` has:
 Class-based components extend `GeometryParent`, which provides `scale` (default 10, max 75), `size = scale + 20` (marching-cubes grid resolution), `eqs`, `out`, and `checkRedundant()`. The class also exposes arrow-function callbacks that the GUI calls:
 - `Function.functionCallback()`: rebuilds the mesh when `scale` changes
 - `SpaceCurve.curveCallback()` rebuilds the curve when `scale` changes; `tCallback()` moves the point to `t`
-- `VectorField.vecsCallback(coord)`: re-selects cached arrows when `slices.{x,y,z}` changes
+- `VectorField.vecsCallback(coord)`: re-lays-out arrows when `slices.{x,y,z}` (arrows per side of the origin, 0–10) changes. All arrows are drawn by one `InstancedMesh`, and field values are cached per grid point.
 
 Point and Vector are still plain factories that return `{out, type}`.
 
@@ -81,11 +81,6 @@ All geometry is built in **math coordinates (z up)**. Don't swap axes inside com
 ## Known issues / gotchas
 
 - Vite `base` is `/realmathAR/` to match the GitHub Pages path. Change it if you host somewhere else.
-- **Vector field load time** (the open TODO from the last commit): the `VectorField` constructor eagerly builds every arrow on a 750³ grid (`(MAXSIZE*2)/STEP` per axis). That is about 4×10⁸ points × 3 evaluations, so it never finishes. Other VectorField problems:
-  - `getVecs()` is never called in the constructor, so nothing appears until a slider moves.
-  - `getVecs()` indexes from the grid corner (-75), not the origin.
-  - Arrows are positioned at the field *value* (`init: dir`) instead of the grid point.
-  - There's a typo, `this.vecsize`, where `this.vecSize` was meant.
 - `animate()` in `threejs-scene-init.js` calls `renderer.render()` with no arguments, which will throw. XR8's pipeline already renders every frame, so it is probably unnecessary.
 - `SpaceCurveClass.js` imports `Line2` from `three/examples/jsm/lines/webgpu/Line2.js` but uses the WebGL `LineGeometry`/`LineMaterial`. `Vector.js` uses the WebGL `Line2`.
 - `Point` ignores its `color` prop and is always yellow.

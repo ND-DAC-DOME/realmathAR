@@ -161,7 +161,7 @@ export const initScenePipelineModule = () => {
                 const sliceFolder = gui.addFolder('Vectors Along []-Axis');
                 (['x', 'y', 'z']).map((coord) => {
                     sliceFolder
-                      .add(component.slices, coord, 1, GlobalRanges.axis[0], GlobalRanges.axis[1])
+                      .add(component.slices, coord, 0, component.constructor.MAXSLICES, 1)
                       .name(`${coord}-axis`)
                       .onFinishChange(()=>{
                         component.vecsCallback(coord);
