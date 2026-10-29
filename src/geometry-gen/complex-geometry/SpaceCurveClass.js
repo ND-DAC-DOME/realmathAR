@@ -3,7 +3,8 @@ import { LineGeometry } from 'three/examples/jsm/Addons.js'
 import { LineMaterial } from 'three/examples/jsm/Addons.js'
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js'
 import { Point } from '../base-geometry/Point'
-import { evaluate, N, assign } from "@cortex-js/compute-engine";
+import { assign } from "@cortex-js/compute-engine";
+import { EvaluateNumber } from '../../input-processing/Evaluate'
 import { GeometryParent } from '../GeometryParent.js'
 
 export class SpaceCurve extends GeometryParent {
@@ -34,9 +35,9 @@ export class SpaceCurve extends GeometryParent {
             assign('t', t)
 
             for (const element of ['x', 'y', 'z']) {
-                const result = `${this.eqs[element].evaluate()}`
-                if (isNaN(result) === false) {
-                    values[element] = Number(result)
+                const result = EvaluateNumber(this.eqs[element])
+                if (Number.isFinite(result)) {
+                    values[element] = result
                 } else {
                     add = false
                     break
@@ -51,9 +52,9 @@ export class SpaceCurve extends GeometryParent {
             /* guarantees we get the point at t=0 */
             assign('t', 0)
             for (const element of ['x', 'y', 'z']) {
-                const result = `${this.eqs[element].evaluate()}`
-                if (isNaN(result) === false) {
-                    this.zeropoint[element] = Number(result)
+                const result = EvaluateNumber(this.eqs[element])
+                if (Number.isFinite(result)) {
+                    this.zeropoint[element] = result
                 } else {
                     this.zeropoint[element] = 0
                 }
@@ -79,9 +80,9 @@ export class SpaceCurve extends GeometryParent {
         let newPoint = {...this.zeropoint}
         assign('t', Number(this.t))
         for (const element of ['x', 'y', 'z']) {
-            const result = `${this.eqs[element].evaluate()}`
-            if (isNaN(result) === false) {
-                newPoint[element] = Number(result)
+            const result = EvaluateNumber(this.eqs[element])
+            if (Number.isFinite(result)) {
+                newPoint[element] = result
             } else {
                 newPoint[element] = 0
             }

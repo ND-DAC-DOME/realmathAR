@@ -1,6 +1,7 @@
 import {edgeTable, triTable} from './MarchingCubesData'
 import { Vector3 } from 'three'
-import { evaluate, N, assign } from "@cortex-js/compute-engine";
+import { assign } from "@cortex-js/compute-engine";
+import { EvaluateNumber } from "../../input-processing/Evaluate";
 
 let size = 30
 let scale = 10
@@ -56,10 +57,8 @@ export const MarchingCubes = (equation, scalein = null, sizein = null) => {
         assign('x', x)
         assign('y', y)
         assign('z', z)
-        const value = `${equation.evaluate()}`
-        if (Number.isNaN(value) === false) {
-          values.push(Number(value))
-        }
+        /* always push (even NaN) so values stay index-aligned with points */
+        values.push(EvaluateNumber(equation))
       }
     }
   }
