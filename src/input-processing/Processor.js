@@ -2,14 +2,13 @@ import { Vector3 } from "three"
 import { GeometryContainer } from "../geometry-gen/GeometryContainer"
 import { simplify, evaluate, N, assign, parse } from "@cortex-js/compute-engine";
 
-const UP = new Vector3(0, 0, 1)
 /* parentheses shorthand */
 const PL = '//left('
 const PR = '//right)'
 
 /*
-  NOTE: FOR ALL, YOU MUST SWITCH Y AND Z
-  SINCE 8TH WALL TREATS Y AS UP AXIS
+  NOTE: all geometry uses math coords (z up)
+  threejs-scene-init rotates the containing group into 8th wall's y-up world
  */
 
 /* helper keeps me from having to rewrite */
@@ -68,14 +67,14 @@ const ProcessVec = (value, color=0x00aaff) => {
         /* direction vector */
         const vec = new Vector3(
         Number(`${parse(value.vec.x).value}`),
-        Number(`${parse(value.vec.z).value}`),
-        Number(`${parse(value.vec.y).value}`)
+        Number(`${parse(value.vec.y).value}`),
+        Number(`${parse(value.vec.z).value}`)
         )
         /* ie, known point of intersection */
         const init = new Vector3(
         Number(`${parse(value.init.x).value}`),
-        Number(`${parse(value.init.z).value}`),
-        Number(`${parse(value.init.y).value}`)
+        Number(`${parse(value.init.y).value}`),
+        Number(`${parse(value.init.z).value}`)
         )
         /* make the line eddboy */
         return GeometryContainer(2, {

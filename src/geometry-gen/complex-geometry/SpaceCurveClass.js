@@ -43,7 +43,7 @@ export class SpaceCurve extends GeometryParent {
                 }
             }
             if (add) {
-                points.push(new Vector3(values.x, values.z, values.y))
+                points.push(new Vector3(values.x, values.y, values.z))
             }
         }
         /* if initializing, also need to get the zero point */
@@ -86,7 +86,7 @@ export class SpaceCurve extends GeometryParent {
                 newPoint[element] = 0
             }
         }
-        this.point.position.set(newPoint.x, newPoint.z, newPoint.y)
+        this.point.position.set(newPoint.x, newPoint.y, newPoint.z)
     }
 
     curveCallback = () => {

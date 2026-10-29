@@ -19,8 +19,8 @@ export class Function extends GeometryParent {
         for (let i = 0; i < trianglePoints.length; i++) {
             const [x, y, z]     = trianglePoints[i]
             vertices[i * 3]     = x
-            vertices[i * 3 + 1] = z
-            vertices[i * 3 + 2] = y
+            vertices[i * 3 + 1] = y
+            vertices[i * 3 + 2] = z
         }
         const positionAttribute = new Float32BufferAttribute(vertices, 3)
         return [positionAttribute, trianglePoints]
@@ -50,7 +50,8 @@ export class Function extends GeometryParent {
                 varying vec2 vUv;
 
                 void main() {
-                    vUv.y = (position.y - bboxMin.y) / (bboxMax.y - bboxMin.y);
+                    /* gradient by height (math z) */
+                    vUv.y = (position.z - bboxMin.z) / (bboxMax.z - bboxMin.z);
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
                 }
             `,

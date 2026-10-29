@@ -70,14 +70,9 @@ Point and Vector are still plain factories that return `{out, type}`.
 
 **To add a component type:** add a `Process*` function and a `case` in `Processor.js`, a `case` in `GeometryContainer.js`, and a `case` in `GuiInit` in `threejs-scene-init.js`. Return an object with `out` and `type`.
 
-## Coordinate conventions (inconsistent, so check before changing)
+## Coordinate conventions
 
-- `app.js` sets `THREE.Object3D.DEFAULT_UP = (0,0,1)`, and the camera's `up` is set to z.
-- `Processor.js` says "FOR ALL, YOU MUST SWITCH Y AND Z SINCE 8TH WALL TREATS Y AS UP AXIS". Not every component follows this:
-  - swapped: Vec (in Processor), Function vertices, SpaceCurve curve points, `SpaceCurve.tCallback`
-  - **not swapped:** Pt, the initial SpaceCurve point at t=0, VectorField positions (only its colors are swapped)
-
-Decide on one convention before fixing individual cases.
+All geometry is built in **math coordinates (z up)**. Don't swap axes inside components. In `threejs-scene-init.js`, the components and the axes sit in a `mathSpace` group rotated −90° about x. That group maps math (x, y, z) to scene (x, z, −y) in 8th Wall's Y-up world, and because it's a rotation, handedness is preserved. The floor grid sits outside that group so it stays horizontal.
 
 ## Vendored 8th Wall engine
 

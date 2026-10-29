@@ -52,6 +52,16 @@ export const initScenePipelineModule = () => {
     /* group that will hold components */
     const Components = new THREE.Group()
 
+    /**
+     * math space: components use math coords (z up), but the 8th wall world is y up
+     * rotating -90deg about x maps math (x, y, z) -> scene (x, z, -y), keeping handedness
+     * grid stays outside so it lies flat on the floor
+     */
+    const mathSpace = new THREE.Group()
+    mathSpace.rotation.x = -Math.PI / 2
+    mathSpace.add(axes)
+    mathSpace.add(Components)
+
     /* global params affect more than 1 object */
     const params = {
         scale: 1.0,
@@ -68,7 +78,7 @@ export const initScenePipelineModule = () => {
       Components.scale.set(value, value, value)
     })
 
-    scene.add(axes)
+    scene.add(mathSpace)
     scene.add(grid)
 
     /* callback when vfld slices changed */
@@ -184,12 +194,9 @@ export const initScenePipelineModule = () => {
 
     console.log('components complete')
 
-    scene.add(Components)
-
     // Set the initial camera position relative to the scene we just laid out. This must be at a
     // height greater than y=0.
     camera.position.set(0, 2, 1)
-    camera.up = new THREE.Vector3( 0, 0, 1 );
 
     console.log(Components)
   };

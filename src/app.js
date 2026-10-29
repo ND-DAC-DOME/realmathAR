@@ -4,7 +4,6 @@ import {initScenePipelineModule} from './threejs-scene-init';
 import * as THREE from 'three';
 
 window.THREE = THREE
-THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 console.log('before onxrloaded');
 
