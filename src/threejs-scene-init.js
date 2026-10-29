@@ -22,20 +22,11 @@ const GlobalRanges =    {
                             t: [100, 0.1]
                         }
 
-async function CallbackCaller (callback, animate) {
-  const prommy = await callback()
-  animate()
-}
-
 export const initScenePipelineModule = () => {
   const purple = 0xAD50FF
 
   // Populates a cube into an XR scene and sets the initial camera position.
   const initXrScene = ({scene, camera, renderer}) => {
-    const animate = () => {
-      renderer.render();
-    }
-
     // Enable shadows in the rednerer.
     renderer.shadowMap.enabled = true
 
@@ -72,7 +63,7 @@ export const initScenePipelineModule = () => {
     const genFolder = gui.addFolder('Global Variables')
     genFolder.add(axes, 'visible').name('axes visible?')
     genFolder.add(grid, 'visible').name('grid visible?')
-    genFolder.add(params, 'scale', 0, 1, 0.1).onChange((value) => {
+    genFolder.add(params, 'scale', 0.1, 1, 0.1).onChange((value) => {
       axes.scale.set(value, value, value)
       grid.scale.set(value, value, value)
       Components.scale.set(value, value, value)
@@ -80,33 +71,6 @@ export const initScenePipelineModule = () => {
 
     scene.add(mathSpace)
     scene.add(grid)
-
-    /* callback when vfld slices changed */
-    const VectorFieldCallback = (value, index, vfld) => {
-        /* clear old slices from display */
-        vfld.group.children = []
-        let i = 0 
-        let j = 0
-        let k = 0
-        /* get desired slices from slice cache */
-        for (let x = -vfld.xSlices; x < vfld.xSlices; x++) {
-            for (let y = -vfld.ySlices; y < vfld.ySlices; y++) {
-                for (let z = -vfld.zSlices; z < vfld.zSlices; z++) {
-                    try {
-                        vfld.group.add(vfld.slices[i][j][k])
-                    } catch (e) {
-                        console.error(`${e}`)
-                    }
-                    k+=1
-                }
-                k = 0
-                j+=1
-            }
-            j = 0
-            i+=1
-        }
-        animate()
-    }
 
     /* ****************************************************************************************
       GUI INITIALIZATION FOR EACH COMPONENT
@@ -119,7 +83,7 @@ export const initScenePipelineModule = () => {
             .name(`axis +-range (x,y,z)`)
             .onFinishChange(() => {
                 if (callback !== null) {
-                    CallbackCaller(callback, animate)
+                    callback()
                 }
             })
         }
@@ -165,7 +129,6 @@ export const initScenePipelineModule = () => {
                       .name(`${coord}-axis`)
                       .onFinishChange(()=>{
                         component.vecsCallback(coord);
-                        animate();
                       });
                 })
                 break

@@ -3,9 +3,8 @@ import { Vector3 } from 'three'
 import { assign } from "@cortex-js/compute-engine";
 import { EvaluateNumber } from "../../input-processing/Evaluate";
 
-let size = 30
-let scale = 10
-const isolevel = 0.3
+/* surface is where the equation (left - right) is 0 */
+const isolevel = 0
 
 /// //////////////////////////////////////////////////////////////////////////////////
 /// adapted from tamani-coding's AND stemkoski's marching cubes examples
@@ -33,14 +32,8 @@ const isolevel = 0.3
 ///   SOFTWARE.
 ///   stemkoski license not provided
 /// //////////////////////////////////////////////////////////////////////////////////
-export const MarchingCubes = (equation, scalein = null, sizein = null) => {
-  // updates when scaled
-  if (sizein !== null) {
-    size = sizein
-  }
-  if (scalein !== null) {
-    scale = scalein
-  }
+/* samples equation on a size^3 grid spanning [-scale/2, scale/2] on each axis */
+export const MarchingCubes = (equation, scale, size) => {
   /* eslint-disable-next-line no-console */
   console.log(`MARCHING CUBES SIZE:${size} SCALE:${scale}`)
   // containers

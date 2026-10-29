@@ -81,11 +81,11 @@ All geometry is built in **math coordinates (z up)**. Don't swap axes inside com
 ## Known issues / gotchas
 
 - Vite `base` is `/realmathAR/` to match the GitHub Pages path. Change it if you host somewhere else.
-- `animate()` in `threejs-scene-init.js` calls `renderer.render()` with no arguments, which will throw. XR8's pipeline already renders every frame, so it is probably unnecessary.
-- `SpaceCurveClass.js` imports `Line2` from `three/examples/jsm/lines/webgpu/Line2.js` but uses the WebGL `LineGeometry`/`LineMaterial`. `Vector.js` uses the WebGL `Line2`.
-- `Point` ignores its `color` prop and is always yellow.
-- `Vector` arrow length is `init.distanceTo(vec)` while `vec` is used as a direction, so it's unclear whether `vec` means a direction or an endpoint.
-- `MarchingCubes.js` keeps `size`/`scale` as mutable module-level state. Its cost grows with `size³`: about 27k evaluations at the default and about 860k at max scale.
+- XR8's three.js pipeline module renders every frame, so components never need to call `renderer.render()` after changing.
+- `Vec` means displacement: the arrow's tail is at `init` and its tip at `init + vec`.
+- Ranges are inconsistent. A surface's `scale` covers [−scale/2, scale/2], while a space curve's covers t ∈ [−scale, scale]. The GUI labels both "axis +-range".
+- Marching cubes cost grows with `size³` (`size = scale + 20`): about 27k evaluations at the default and about 860k at the max scale of 75.
+- Import three.js add-ons by their specific path (for example `three/examples/jsm/lines/Line2.js`), not from `Addons.js`, which pulls in every add-on. Use the WebGL versions of add-ons, not the `webgpu/` ones.
 - The marching-cubes and lookup-table code is adapted from MIT-licensed tamani-coding and from stemkoski/Paul Bourke. Keep those attribution headers.
 - `public/xr/` is the 8th Wall / Niantic XR Engine under its own license (`public/xr/LICENSE`). Don't edit it.
 

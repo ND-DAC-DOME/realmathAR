@@ -94,7 +94,7 @@ export class Function extends GeometryParent {
             return 
         } else {
             this.setSize()
-            this.MeshGetter()
+            this.MeshGetter(true)
         }
     }
 }

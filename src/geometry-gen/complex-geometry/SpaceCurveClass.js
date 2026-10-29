@@ -1,7 +1,7 @@
 import { Vector3, LineBasicMaterial, BufferGeometry, Line, Group } from 'three'
-import { LineGeometry } from 'three/examples/jsm/Addons.js'
-import { LineMaterial } from 'three/examples/jsm/Addons.js'
-import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js'
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js'
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
+import { Line2 } from 'three/examples/jsm/lines/Line2.js'
 import { Point } from '../base-geometry/Point'
 import { assign } from "@cortex-js/compute-engine";
 import { EvaluateNumber } from '../../input-processing/Evaluate'
