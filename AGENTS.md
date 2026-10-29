@@ -15,12 +15,13 @@ npm install
 npm run serve      # vite dev server at http://localhost:5173/realmathAR/
 npm run build      # production build -> dist/
 npm run preview    # serve dist/
+npm run deploy     # build + push dist/ to the gh-pages branch (GitHub Pages)
 npm test           # vitest, runs headless in Node (tests/)
 ```
 
 - Tests in `tests/` cover parsing, evaluation, and geometry building (no AR or rendering). Add a test when you fix a math or geometry bug. There's no linter or formatter. (Stray `eslint-disable` comments are left over from an earlier setup.)
 - AR needs a phone camera and HTTPS. `vite.config.js` allows `.ngrok-free.dev` hosts, so tunnel the dev server with ngrok to test on a device.
-- Deploys to GitHub Pages via `.github/workflows/deploy.yml` on every push to `main`, after `npm test` passes.
+- Deployment is manual on purpose: there's no CI, and the maintainers want to keep it that way. `npm run deploy` publishes to GitHub Pages (Settings → Pages must be set to serve the `gh-pages` branch). Long-term hosting is still undecided, so `dist/` from `npm run build` can go on any static host.
 
 ## Runtime flow
 

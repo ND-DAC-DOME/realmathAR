@@ -47,7 +47,11 @@ See [AGENTS.md](./AGENTS.md) for architecture notes and known issues.
 
 ## Deployment
 
-Pushing to `main` builds and deploys to GitHub Pages via `.github/workflows/deploy.yml`.
+```bash
+npm run deploy    # builds, then pushes dist/ to the gh-pages branch
+```
+
+One-time setup: in the repo's **Settings → Pages**, set the source to **Deploy from a branch → `gh-pages` / root**. The site is then served at https://nd-dac-dome.github.io/realmathAR/. To host somewhere else, upload `dist/` from `npm run build`, and change `base` in `vite.config.js` if the path isn't `/realmathAR/`.
 
 ## Credits
 
