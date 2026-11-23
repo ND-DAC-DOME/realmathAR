@@ -39,7 +39,7 @@ index.html
 
 ### Input format (Parser.js)
 
-The input page is the separate `ND-DAC-DOME/realmath` site (https://nd-dac-dome.github.io/realmath/). It sends `?z=<lz-string compressToEncodedURIComponent(json)>`, with components grouped by type (`{"Func": {"Func 1": {...}}}`). `Parser` decompresses that payload and flattens it. A hand-written `?eqs=<encodeURIComponent(json)>` with flat keys also works, as does the legacy format (encoded JSON appended right after `https://ndlearning.8thwall.app/realmath/`). If you change the payload shape, change both repos. If there is no input or it fails to parse, Parser falls back to the hard-coded `defaults` (and returns an `error` for bad JSON).
+The input page is the separate `ND-DAC-DOME/realmath` site (https://nd-dac-dome.github.io/realmath/). It sends `?z=<lz-string compressToEncodedURIComponent(json)>`, with components grouped by type (`{"Func": {"Func 1": {...}}}`). `Parser` decompresses that payload and flattens it. A hand-written `?eqs=<encodeURIComponent(json)>` with flat keys also works, as does the legacy format (encoded JSON appended right after `https://ndlearning.8thwall.app/realmath/`). Each component's props may include an optional `label`: the name the user gave the tab on the input site. `Processor` shows `label` (or else the key) as the GUI folder name, and appends ` (2)`, ` (3)`, … to keep names unique. The type always comes from the key (`Func 1` -> `Func`). If you change the payload shape, change both repos. If there is no input or it fails to parse, Parser falls back to the hard-coded `defaults` (and returns an `error` for bad JSON).
 
 The first word of each key sets the component type (`"Func 1"`, `"Vec 2"`, etc.):
 
@@ -88,7 +88,7 @@ Point and Vector are still plain factories that return `{out, type}`.
 
 Scene graph: `scene` > `mathSpace` (rotated into Y-up, scaled by the global scale) > `focusGroup` (positioned at −focus) > axes + `Components` > one wrapper `Group` per component > `component.out`.
 
-- **Global scale:** 0.05–3×, set by the slider or a two-finger pinch on the canvas. A quick single-finger tap recenters the AR anchor.
+- **Global scale:** the slider runs 0.1–5 in steps of 0.05, set by the slider or a two-finger pinch on the canvas. A slider value of 1 is `SCALE_UNIT` (0.15) real scale, because the graph at 1:1 was too big to see in AR. A quick single-finger tap recenters the AR anchor.
 - **Focal point:** x/y/z sliders, plus a "center on" dropdown that snaps to a point, a vector's start, a curve's current point, or a surface's center. While a slider is dragging, content only translates. When the drag ends, components with `setFocus` (surfaces, vector fields) resample around the new focal point. A surface is drawn only inside its window around the focal point, so moving far away can make a surface leave its window; raise that surface's "window width" to bring it back.
 - **Per component:** visibility and "display size" (0.1–3×). Display size scales the component's wrapper about the focal point, so it changes how large the component looks, not its math.
 

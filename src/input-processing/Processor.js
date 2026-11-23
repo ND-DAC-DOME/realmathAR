@@ -90,19 +90,33 @@ const PROCESSORS = {
     VFld: ProcessVFld,
 }
 
+/* display name: the optional user-chosen `label` prop, else the key; made unique by appending (2), (3), ... */
+const DisplayName = (key, value, used) => {
+    const label = typeof value?.label === 'string' ? value.label.trim() : ''
+    const base = label.length > 0 ? label : key
+    let name = base
+    for (let n = 2; used.has(name); n++) {
+        name = `${base} (${n})`
+    }
+    used.add(name)
+    return name
+}
+
 /* returns built components as [name, component] pairs, plus {name, message} for any that failed */
 export const Processor = (inputs) => {
     const components = []
     const errors = []
+    const used = new Set()
     for (const [key, value] of Object.entries(inputs ?? {})) {
-        const type = key.split(' ')[0]
+        const type = key.split(' ')[0]   // the key, not the label, carries the type
+        const name = DisplayName(key, value, used)
         try {
             if (!Object.hasOwn(PROCESSORS, type)) {
                 throw new Error(`unknown type "${type}"`)
             }
-            components.push([key, PROCESSORS[type](value)])
+            components.push([name, PROCESSORS[type](value)])
         } catch (e) {
-            errors.push({name: key, message: e.message})
+            errors.push({name, message: e.message})
         }
     }
     return {components, errors}

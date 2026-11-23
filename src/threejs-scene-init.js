@@ -7,10 +7,13 @@ import { Processor } from './input-processing/Processor';
 const GlobalRanges =    {
                             window: [5, 75, 1],       // surface sampling window width
                             focus: [-75, 75, 0.5],    // focal point coords
-                            scale: [0.05, 3, 0.05],   // whole-graph scale
+                            scale: [0.1, 5, 0.05],    // whole-graph scale, in SCALE_UNITs
                             size: [0.1, 3, 0.05],     // per-component display size
                             t: [100, 0.1],
                         }
+
+/* real scene scale for a slider value of 1: the raw graph is too big to see at 1:1 in AR */
+const SCALE_UNIT = 0.15
 
 /* distance between the first two touches, for pinch-to-scale */
 const TouchDistance = (touches) => Math.hypot(
@@ -69,11 +72,12 @@ export const initScenePipelineModule = () => {
     const scaleController = genFolder.add(params, 'scale', ...GlobalRanges.scale)
     const setScale = (value) => {
       params.scale = THREE.MathUtils.clamp(value, GlobalRanges.scale[0], GlobalRanges.scale[1])
-      mathSpace.scale.setScalar(params.scale)
-      grid.scale.setScalar(params.scale)
+      mathSpace.scale.setScalar(params.scale * SCALE_UNIT)
+      grid.scale.setScalar(params.scale * SCALE_UNIT)
       scaleController.updateDisplay()
     }
     scaleController.onChange(setScale)
+    setScale(params.scale)
 
     scene.add(mathSpace)
     scene.add(grid)
